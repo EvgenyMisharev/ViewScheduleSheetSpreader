@@ -21,19 +21,29 @@ namespace ViewScheduleSheetSpreader
     {
         Document Doc;
         ObservableCollection<ViewSchedule> ViewScheduleInProjectCollection;
-        ObservableCollection<ViewSchedule> SelectedViewScheduleCollection;
-        ObservableCollection<Family> TitleBlocksFor1stSheetCollection;
+        public ObservableCollection<ViewSchedule> SelectedViewScheduleCollection;
+        ObservableCollection<Family> TitleBlocksForFirstSheetCollection;
         ObservableCollection<Family> TitleBlocksForFollowingSheetsCollection;
-        ObservableCollection<FamilySymbol> TitleBlocksFor1stSheetTypeCollection;
+        ObservableCollection<FamilySymbol> TitleBlocksForFirstSheetTypeCollection;
         ObservableCollection<FamilySymbol> TitleBlocksForFollowingSheetsTypeCollection;
         ObservableCollection<Parameter> FamilyInstanceParametersCollection;
-        public ViewScheduleSheetSpreaderWPF(Document doc, List<ViewSchedule> viewScheduleList, List<Family> titleBlockFamilysList)
+        ObservableCollection<Definition> ParamDefinitionsCollection;
+        public FamilySymbol FirstSheetType;
+        public FamilySymbol FollowingSheetType;
+        public Parameter SheetFormatParameter;
+        public Definition GroupingParameterDefinition;
+        public string SheetSizeVariantName;
+        public double XOffset;
+        public double YOffset;
+
+        public ViewScheduleSheetSpreaderWPF(Document doc, List<ViewSchedule> viewScheduleList, List<Family> titleBlockFamilysList, List<Definition> paramDefinitionsList)
         {
             Doc = doc;
             ViewScheduleInProjectCollection = new ObservableCollection<ViewSchedule>(viewScheduleList);
             SelectedViewScheduleCollection = new ObservableCollection<ViewSchedule>();
-            TitleBlocksFor1stSheetCollection = new ObservableCollection<Family>(titleBlockFamilysList);
+            TitleBlocksForFirstSheetCollection = new ObservableCollection<Family>(titleBlockFamilysList);
             TitleBlocksForFollowingSheetsCollection = new ObservableCollection<Family>(titleBlockFamilysList);
+            ParamDefinitionsCollection = new ObservableCollection<Definition>(paramDefinitionsList.OrderBy(df =>df.Name));
 
             InitializeComponent();
 
@@ -43,18 +53,17 @@ namespace ViewScheduleSheetSpreader
             listBox_SelectedViewScheduleCollection.ItemsSource = SelectedViewScheduleCollection;
             listBox_SelectedViewScheduleCollection.DisplayMemberPath = "Name";
 
-            comboBox_1stSheetFamily.ItemsSource = TitleBlocksFor1stSheetCollection;
-            comboBox_1stSheetFamily.DisplayMemberPath = "Name";
-            comboBox_1stSheetFamily.SelectedItem = comboBox_1stSheetFamily.Items.GetItemAt(0);
+            comboBox_FirstSheetFamily.ItemsSource = TitleBlocksForFirstSheetCollection;
+            comboBox_FirstSheetFamily.DisplayMemberPath = "Name";
+            comboBox_FirstSheetFamily.SelectedItem = comboBox_FirstSheetFamily.Items.GetItemAt(0);
 
             comboBox_FollowingSheetsFamily.ItemsSource = TitleBlocksForFollowingSheetsCollection;
             comboBox_FollowingSheetsFamily.DisplayMemberPath = "Name";
             comboBox_FollowingSheetsFamily.SelectedItem = comboBox_FollowingSheetsFamily.Items.GetItemAt(0);
-        }
-        private void btn_Ok_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = true;
-            Close();
+
+            comboBox_GroupingParameter.ItemsSource = ParamDefinitionsCollection;
+            comboBox_GroupingParameter.DisplayMemberPath = "Name";
+            comboBox_GroupingParameter.SelectedItem = comboBox_GroupingParameter.Items.GetItemAt(0);
         }
         private void btn_Add_Click(object sender, RoutedEventArgs e)
         {
@@ -118,41 +127,21 @@ namespace ViewScheduleSheetSpreader
             }
         }
 
-        private void btn_Cancel_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
-            Close();
-        }
-        private void ViewScheduleSheetSpreaderWPF_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter || e.Key == Key.Space)
-            {
-                DialogResult = true;
-                Close();
-            }
-
-            else if (e.Key == Key.Escape)
-            {
-                DialogResult = false;
-                Close();
-            }
-        }
-
-        private void comboBox_1stSheetFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void comboBox_FirstSheetFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             List<ElementId> familySymbolsIdList = ((sender as ComboBox).SelectedItem as Family).GetFamilySymbolIds().ToList();
-            TitleBlocksFor1stSheetTypeCollection = new ObservableCollection<FamilySymbol>();
+            TitleBlocksForFirstSheetTypeCollection = new ObservableCollection<FamilySymbol>();
             if (familySymbolsIdList.Count != 0)
             {
                 foreach (ElementId symbolId in familySymbolsIdList)
                 {
-                    TitleBlocksFor1stSheetTypeCollection.Add(Doc.GetElement(symbolId) as FamilySymbol);
+                    TitleBlocksForFirstSheetTypeCollection.Add(Doc.GetElement(symbolId) as FamilySymbol);
                 }
             }
-            TitleBlocksFor1stSheetTypeCollection = new ObservableCollection<FamilySymbol>(TitleBlocksFor1stSheetTypeCollection.OrderBy(fs => fs.Name).ToList());
-            comboBox_1stSheetType.ItemsSource = TitleBlocksFor1stSheetTypeCollection;
-            comboBox_1stSheetType.DisplayMemberPath = "Name";
-            comboBox_1stSheetType.SelectedItem = comboBox_1stSheetType.Items.GetItemAt(0);
+            TitleBlocksForFirstSheetTypeCollection = new ObservableCollection<FamilySymbol>(TitleBlocksForFirstSheetTypeCollection.OrderBy(fs => fs.Name).ToList());
+            comboBox_FirstSheetType.ItemsSource = TitleBlocksForFirstSheetTypeCollection;
+            comboBox_FirstSheetType.DisplayMemberPath = "Name";
+            comboBox_FirstSheetType.SelectedItem = comboBox_FirstSheetType.Items.GetItemAt(0);
         }
 
         private void comboBox_FollowingSheetsFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -172,7 +161,7 @@ namespace ViewScheduleSheetSpreader
             comboBox_FollowingSheetsType.SelectedItem = comboBox_FollowingSheetsType.Items.GetItemAt(0);
         }
 
-        private void comboBox_1stSheetType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void comboBox_FirstSheetType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             FamilySymbol selectedFamilySymbol = (sender as ComboBox).SelectedItem as FamilySymbol;
             ParameterSet parameterSet = null;
@@ -207,15 +196,55 @@ namespace ViewScheduleSheetSpreader
             {
                 label_SheetFormatParameter.IsEnabled = true;
                 comboBox_SheetFormatParameter.IsEnabled = true;
-                label_SheetFormatParameterValue.IsEnabled = true;
-                textBox_SheetFormatParameterValue.IsEnabled = true;
             }
             else if (selectedButtonName == "radioButton_Type")
             {
                 label_SheetFormatParameter.IsEnabled = false;
                 comboBox_SheetFormatParameter.IsEnabled = false;
-                label_SheetFormatParameterValue.IsEnabled = false;
-                textBox_SheetFormatParameterValue.IsEnabled = false;
+            }
+        }
+        private void btn_Ok_Click(object sender, RoutedEventArgs e)
+        {
+            FirstSheetType = comboBox_FirstSheetType.SelectedItem as FamilySymbol;
+            FollowingSheetType = comboBox_FollowingSheetsType.SelectedItem as FamilySymbol;
+            SheetFormatParameter = comboBox_SheetFormatParameter.SelectedItem as Parameter;
+            GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
+            double.TryParse(textBox_XOffset.Text, out XOffset);
+            double.TryParse(textBox_YOffset.Text, out YOffset);
+            SheetSizeVariantName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
+                .Children.OfType<RadioButton>()
+                .FirstOrDefault(rb => rb.IsChecked.Value == true)
+                .Name;
+            DialogResult = true;
+            Close();
+        }
+        private void btn_Cancel_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = false;
+            Close();
+        }
+        private void ViewScheduleSheetSpreaderWPF_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter || e.Key == Key.Space)
+            {
+                FirstSheetType = comboBox_FirstSheetType.SelectedItem as FamilySymbol;
+                FollowingSheetType = comboBox_FollowingSheetsType.SelectedItem as FamilySymbol;
+                SheetFormatParameter = comboBox_SheetFormatParameter.SelectedItem as Parameter;
+                GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
+                double.TryParse(textBox_XOffset.Text, out XOffset);
+                double.TryParse(textBox_YOffset.Text, out YOffset);
+                SheetSizeVariantName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
+                    .Children.OfType<RadioButton>()
+                    .FirstOrDefault(rb => rb.IsChecked.Value == true)
+                    .Name;
+                DialogResult = true;
+                Close();
+            }
+
+            else if (e.Key == Key.Escape)
+            {
+                DialogResult = false;
+                Close();
             }
         }
     }
