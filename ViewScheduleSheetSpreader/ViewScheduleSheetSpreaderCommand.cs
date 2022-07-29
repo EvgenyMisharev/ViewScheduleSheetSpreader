@@ -58,8 +58,8 @@ namespace ViewScheduleSheetSpreader
             double xOffset = viewScheduleSheetSpreaderWPF.XOffset / 304.8;
             double yOffset = viewScheduleSheetSpreaderWPF.YOffset / 304.8;
             string sheetSizeVariantName = viewScheduleSheetSpreaderWPF.SheetSizeVariantName;
-            //Добавить выбор номера листа!!!
-            int sheetNumber = 69;
+            int sheetNumber = viewScheduleSheetSpreaderWPF.FirstSheetNumber;
+
             int startSheetNumber = sheetNumber;
             ViewSheet currentViewSheet = null;
             XYZ viewLocation = new XYZ(xOffset, yOffset, 0);
@@ -124,7 +124,7 @@ namespace ViewScheduleSheetSpreader
                         }
                     }
 
-                    viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Maximum = elementIdListByRow.Count);
+                    viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Maximum = elementIdListByRow.Count);
                     foreach (List<ElementId> idList in elementIdListByRow)
                     {
                         stepPlacementSpecificationsOnSheets++;
@@ -168,26 +168,45 @@ namespace ViewScheduleSheetSpreader
                             ScheduleFilter filter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber.ToString());
                             definition.AddFilter(filter);
 
+                            if((yOffset - viewLocation.Y).Equals(0))
+                            {
+                                definition.ShowTitle = true;
+                            }
+                            else
+                            {
+                                definition.ShowTitle = false;
+                            }
+
                             ScheduleSheetInstance tmpScheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentViewSheet.Id, tmpViewSchedule.Id, viewLocation);
                             BoundingBoxXYZ bb = tmpScheduleSheetInstance.get_BoundingBox(currentViewSheet);
                             double scheduleHeight = bb.Max.Y - bb.Min.Y - 0.00695538057742782152230971128609;
+                            double summScheduleHeight = scheduleHeight + (yOffset - viewLocation.Y);
 
-                            if (startSheetNumber == sheetNumber && scheduleHeight < 230 / 304.8)
+                            if (startSheetNumber == sheetNumber && summScheduleHeight < 230 / 304.8)
                             {
                                 if (stepPlacementSpecificationsOnSheets != elementIdListByRow.Count) t.RollBack();
-                                else t.Commit();
+                                else
+                                {
+                                    t.Commit();
+                                    viewLocation = viewLocation - scheduleHeight * XYZ.BasisY;
+                                } 
+
                             }
-                            else if (startSheetNumber != sheetNumber && scheduleHeight < 270 / 304.8)
+                            else if (startSheetNumber != sheetNumber && summScheduleHeight < 270 / 304.8)
                             {
                                 if (stepPlacementSpecificationsOnSheets != elementIdListByRow.Count) t.RollBack();
-                                else t.Commit();
+                                else
+                                {
+                                    t.Commit();
+                                    viewLocation = viewLocation - scheduleHeight * XYZ.BasisY;
+                                }
                             }
                             else
                             {
                                 t.Commit();
                                 sheetNumber++;
-                                xOffset = viewScheduleSheetSpreaderWPF.XOffset / 304.8;
-                                yOffset = viewScheduleSheetSpreaderWPF.YOffset / 304.8;
+                                viewLocation = new XYZ(xOffset, yOffset, 0);
+
                                 t.Start("Заполнение номера листа в группировку");
                                 foreach (ElementId elementId in idList)
                                 {

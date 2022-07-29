@@ -35,6 +35,7 @@ namespace ViewScheduleSheetSpreader
         public string SheetSizeVariantName;
         public double XOffset;
         public double YOffset;
+        public int FirstSheetNumber;
 
         public ViewScheduleSheetSpreaderWPF(Document doc, List<ViewSchedule> viewScheduleList, List<Family> titleBlockFamilysList, List<Definition> paramDefinitionsList)
         {
@@ -211,6 +212,7 @@ namespace ViewScheduleSheetSpreader
             GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
             double.TryParse(textBox_XOffset.Text, out XOffset);
             double.TryParse(textBox_YOffset.Text, out YOffset);
+            int.TryParse(textBox_FirstSheetNumber.Text, out FirstSheetNumber);
             SheetSizeVariantName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
                 .Children.OfType<RadioButton>()
                 .FirstOrDefault(rb => rb.IsChecked.Value == true)
@@ -233,6 +235,7 @@ namespace ViewScheduleSheetSpreader
                 GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
                 double.TryParse(textBox_XOffset.Text, out XOffset);
                 double.TryParse(textBox_YOffset.Text, out YOffset);
+                int.TryParse(textBox_FirstSheetNumber.Text, out FirstSheetNumber);
                 SheetSizeVariantName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
                     .Children.OfType<RadioButton>()
                     .FirstOrDefault(rb => rb.IsChecked.Value == true)
