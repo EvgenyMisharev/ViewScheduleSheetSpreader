@@ -36,6 +36,8 @@ namespace ViewScheduleSheetSpreader
         public double XOffset;
         public double YOffset;
         public int FirstSheetNumber;
+        public string HeaderInSpecificationHeaderVariantName;
+        public double SpecificationHeaderHeight;
 
         public ViewScheduleSheetSpreaderWPF(Document doc, List<ViewSchedule> viewScheduleList, List<Family> titleBlockFamilysList, List<Definition> paramDefinitionsList)
         {
@@ -204,6 +206,24 @@ namespace ViewScheduleSheetSpreader
                 comboBox_SheetFormatParameter.IsEnabled = false;
             }
         }
+        private void radioButton_HeaderInSpecificationHeader_Checked(object sender, RoutedEventArgs e)
+        {
+            string selectedButtonName = (this.groupBox_HeaderInSpecificationHeader.Content as System.Windows.Controls.Grid)
+                .Children.OfType<RadioButton>()
+                .FirstOrDefault(rb => rb.IsChecked.Value == true)
+                .Name;
+            if (selectedButtonName == "radioButton_Yes")
+            {
+                label_SpecificationHeaderHeight.IsEnabled = false;
+                textBox_SpecificationHeaderHeight.IsEnabled = false;
+            }
+            else if (selectedButtonName == "radioButton_No")
+            {
+                label_SpecificationHeaderHeight.IsEnabled = true;
+                textBox_SpecificationHeaderHeight.IsEnabled = true;
+            }
+        }
+
         private void btn_Ok_Click(object sender, RoutedEventArgs e)
         {
             FirstSheetType = comboBox_FirstSheetType.SelectedItem as FamilySymbol;
@@ -217,6 +237,11 @@ namespace ViewScheduleSheetSpreader
                 .Children.OfType<RadioButton>()
                 .FirstOrDefault(rb => rb.IsChecked.Value == true)
                 .Name;
+            HeaderInSpecificationHeaderVariantName = (this.groupBox_HeaderInSpecificationHeader.Content as System.Windows.Controls.Grid)
+                .Children.OfType<RadioButton>()
+                .FirstOrDefault(rb => rb.IsChecked.Value == true)
+                .Name;
+            double.TryParse(textBox_SpecificationHeaderHeight.Text, out SpecificationHeaderHeight);
             DialogResult = true;
             Close();
         }
@@ -240,6 +265,11 @@ namespace ViewScheduleSheetSpreader
                     .Children.OfType<RadioButton>()
                     .FirstOrDefault(rb => rb.IsChecked.Value == true)
                     .Name;
+                HeaderInSpecificationHeaderVariantName = (this.groupBox_HeaderInSpecificationHeader.Content as System.Windows.Controls.Grid)
+                    .Children.OfType<RadioButton>()
+                    .FirstOrDefault(rb => rb.IsChecked.Value == true)
+                    .Name;
+                double.TryParse(textBox_SpecificationHeaderHeight.Text, out SpecificationHeaderHeight);
                 DialogResult = true;
                 Close();
             }
