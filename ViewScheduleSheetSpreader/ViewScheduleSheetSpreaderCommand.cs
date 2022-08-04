@@ -168,6 +168,10 @@ namespace ViewScheduleSheetSpreader
                                 {
                                     doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
                                 }
+                                else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
+                                {
+                                    doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                }
                             }
                             t.Commit();
 
@@ -192,6 +196,10 @@ namespace ViewScheduleSheetSpreader
                             {
                                 filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
                             }
+                            else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
+                            {
+                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
+                            }
 
                             //Проверка наличия фильтра в спецификации
                             IList<ScheduleFilter> filtersInViewSchedule = definition.GetFilters();
@@ -208,6 +216,10 @@ namespace ViewScheduleSheetSpreader
                                         filterInViewSchedule.SetValue(sheetNumber.ToString());
                                     }
                                     else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
+                                    {
+                                        filterInViewSchedule.SetValue(sheetNumber);
+                                    }
+                                    else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
                                     {
                                         filterInViewSchedule.SetValue(sheetNumber);
                                     }
@@ -277,6 +289,10 @@ namespace ViewScheduleSheetSpreader
                                         doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
                                     }
                                     else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
+                                    {
+                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                    }
+                                    else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
                                     {
                                         doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
                                     }
