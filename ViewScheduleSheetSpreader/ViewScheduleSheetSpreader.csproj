@@ -70,6 +70,7 @@
     <Compile Include="ViewScheduleSheetSpreaderProgressBarWPF.xaml.cs">
       <DependentUpon>ViewScheduleSheetSpreaderProgressBarWPF.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ViewScheduleSheetSpreaderSettings.cs" />
     <Compile Include="ViewScheduleSheetSpreaderWPF.xaml.cs">
       <DependentUpon>ViewScheduleSheetSpreaderWPF.xaml</DependentUpon>
     </Compile>

@@ -30,6 +30,8 @@ namespace ViewScheduleSheetSpreader
         public string HeaderInSpecificationHeaderVariantName;
         public double SpecificationHeaderHeight;
 
+        ViewScheduleSheetSpreaderSettings ViewScheduleSheetSpreaderSettingsItem;
+
         public ViewScheduleSheetSpreaderWPF(Document doc, List<ViewSchedule> viewScheduleList, List<Family> titleBlockFamilysList, List<Definition> paramDefinitionsList)
         {
             Doc = doc;
@@ -37,7 +39,9 @@ namespace ViewScheduleSheetSpreader
             SelectedViewScheduleCollection = new ObservableCollection<ViewSchedule>();
             TitleBlocksForFirstSheetCollection = new ObservableCollection<Family>(titleBlockFamilysList);
             TitleBlocksForFollowingSheetsCollection = new ObservableCollection<Family>(titleBlockFamilysList);
-            ParamDefinitionsCollection = new ObservableCollection<Definition>(paramDefinitionsList.OrderBy(df =>df.Name));
+            ParamDefinitionsCollection = new ObservableCollection<Definition>(paramDefinitionsList.OrderBy(df => df.Name));
+
+            ViewScheduleSheetSpreaderSettingsItem = new ViewScheduleSheetSpreaderSettings().GetSettings();
 
             InitializeComponent();
 
@@ -49,16 +53,16 @@ namespace ViewScheduleSheetSpreader
 
             comboBox_FirstSheetFamily.ItemsSource = TitleBlocksForFirstSheetCollection;
             comboBox_FirstSheetFamily.DisplayMemberPath = "Name";
-            comboBox_FirstSheetFamily.SelectedItem = comboBox_FirstSheetFamily.Items.GetItemAt(0);
 
             comboBox_FollowingSheetsFamily.ItemsSource = TitleBlocksForFollowingSheetsCollection;
             comboBox_FollowingSheetsFamily.DisplayMemberPath = "Name";
-            comboBox_FollowingSheetsFamily.SelectedItem = comboBox_FollowingSheetsFamily.Items.GetItemAt(0);
 
             comboBox_GroupingParameter.ItemsSource = ParamDefinitionsCollection;
             comboBox_GroupingParameter.DisplayMemberPath = "Name";
-            comboBox_GroupingParameter.SelectedItem = comboBox_GroupingParameter.Items.GetItemAt(0);
+
+            SetSavedSettingsValueToForm();
         }
+
         private void btn_Add_Click(object sender, RoutedEventArgs e)
         {
             List<ViewSchedule> viewScheduleInProjectCollectionSelectedItems = listBox_ViewScheduleInProjectCollection
@@ -217,25 +221,11 @@ namespace ViewScheduleSheetSpreader
 
         private void btn_Ok_Click(object sender, RoutedEventArgs e)
         {
-            FirstSheetType = comboBox_FirstSheetType.SelectedItem as FamilySymbol;
-            FollowingSheetType = comboBox_FollowingSheetsType.SelectedItem as FamilySymbol;
-            SheetFormatParameter = comboBox_SheetFormatParameter.SelectedItem as Parameter;
-            GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
-            double.TryParse(textBox_XOffset.Text, out XOffset);
-            double.TryParse(textBox_YOffset.Text, out YOffset);
-            int.TryParse(textBox_FirstSheetNumber.Text, out FirstSheetNumber);
-            SheetSizeVariantName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
-                .Children.OfType<RadioButton>()
-                .FirstOrDefault(rb => rb.IsChecked.Value == true)
-                .Name;
-            HeaderInSpecificationHeaderVariantName = (this.groupBox_HeaderInSpecificationHeader.Content as System.Windows.Controls.Grid)
-                .Children.OfType<RadioButton>()
-                .FirstOrDefault(rb => rb.IsChecked.Value == true)
-                .Name;
-            double.TryParse(textBox_SpecificationHeaderHeight.Text, out SpecificationHeaderHeight);
+            SaveDialogResultValues();
             DialogResult = true;
             Close();
         }
+
         private void btn_Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
@@ -245,22 +235,7 @@ namespace ViewScheduleSheetSpreader
         {
             if (e.Key == Key.Enter || e.Key == Key.Space)
             {
-                FirstSheetType = comboBox_FirstSheetType.SelectedItem as FamilySymbol;
-                FollowingSheetType = comboBox_FollowingSheetsType.SelectedItem as FamilySymbol;
-                SheetFormatParameter = comboBox_SheetFormatParameter.SelectedItem as Parameter;
-                GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
-                double.TryParse(textBox_XOffset.Text, out XOffset);
-                double.TryParse(textBox_YOffset.Text, out YOffset);
-                int.TryParse(textBox_FirstSheetNumber.Text, out FirstSheetNumber);
-                SheetSizeVariantName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
-                    .Children.OfType<RadioButton>()
-                    .FirstOrDefault(rb => rb.IsChecked.Value == true)
-                    .Name;
-                HeaderInSpecificationHeaderVariantName = (this.groupBox_HeaderInSpecificationHeader.Content as System.Windows.Controls.Grid)
-                    .Children.OfType<RadioButton>()
-                    .FirstOrDefault(rb => rb.IsChecked.Value == true)
-                    .Name;
-                double.TryParse(textBox_SpecificationHeaderHeight.Text, out SpecificationHeaderHeight);
+                SaveDialogResultValues();
                 DialogResult = true;
                 Close();
             }
@@ -269,6 +244,156 @@ namespace ViewScheduleSheetSpreader
             {
                 DialogResult = false;
                 Close();
+            }
+        }
+        private void SaveDialogResultValues()
+        {
+            ViewScheduleSheetSpreaderSettingsItem = new ViewScheduleSheetSpreaderSettings();
+            ViewScheduleSheetSpreaderSettingsItem.FirstSheetFamilyName = (comboBox_FirstSheetFamily.SelectedItem as Family).Name;
+
+            FirstSheetType = comboBox_FirstSheetType.SelectedItem as FamilySymbol;
+            ViewScheduleSheetSpreaderSettingsItem.FirstSheetTypeName = FirstSheetType.Name;
+
+            ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsFamilyName = (comboBox_FollowingSheetsFamily.SelectedItem as Family).Name;
+
+            FollowingSheetType = comboBox_FollowingSheetsType.SelectedItem as FamilySymbol;
+            ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsTypeName = FollowingSheetType.Name;
+
+            SheetFormatParameter = comboBox_SheetFormatParameter.SelectedItem as Parameter;
+            ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName = SheetFormatParameter.Definition.Name;
+
+            GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
+            ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName = GroupingParameterDefinition.Name;
+
+            double.TryParse(textBox_XOffset.Text, out XOffset);
+            ViewScheduleSheetSpreaderSettingsItem.XOffsetValue = textBox_XOffset.Text;
+
+            double.TryParse(textBox_YOffset.Text, out YOffset);
+            ViewScheduleSheetSpreaderSettingsItem.YOffsetValue = textBox_YOffset.Text;
+
+            int.TryParse(textBox_FirstSheetNumber.Text, out FirstSheetNumber);
+            ViewScheduleSheetSpreaderSettingsItem.FirstSheetNumberValue = textBox_FirstSheetNumber.Text;
+
+            SheetSizeVariantName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
+                .Children.OfType<RadioButton>()
+                .FirstOrDefault(rb => rb.IsChecked.Value == true)
+                .Name;
+            ViewScheduleSheetSpreaderSettingsItem.SheetSizeSelectedButtonName = SheetSizeVariantName;
+
+            HeaderInSpecificationHeaderVariantName = (this.groupBox_HeaderInSpecificationHeader.Content as System.Windows.Controls.Grid)
+                .Children.OfType<RadioButton>()
+                .FirstOrDefault(rb => rb.IsChecked.Value == true)
+                .Name;
+            ViewScheduleSheetSpreaderSettingsItem.HeaderInSpecificationHeaderSelectedButtonName = HeaderInSpecificationHeaderVariantName;
+
+            double.TryParse(textBox_SpecificationHeaderHeight.Text, out SpecificationHeaderHeight);
+            ViewScheduleSheetSpreaderSettingsItem.SpecificationHeaderHeightValue = textBox_SpecificationHeaderHeight.Text;
+            ViewScheduleSheetSpreaderSettingsItem.SaveSettings();
+        }
+        private void SetSavedSettingsValueToForm()
+        {
+            if (ViewScheduleSheetSpreaderSettingsItem.SheetSizeSelectedButtonName != null)
+            {
+                if (ViewScheduleSheetSpreaderSettingsItem.SheetSizeSelectedButtonName == "radioButton_Type")
+                {
+                    radioButton_Type.IsChecked = true;
+                }
+            }
+
+            if (TitleBlocksForFirstSheetCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FirstSheetFamilyName) != null)
+            {
+                comboBox_FirstSheetFamily.SelectedItem = TitleBlocksForFirstSheetCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FirstSheetFamilyName);
+            }
+            else
+            {
+                comboBox_FirstSheetFamily.SelectedItem = comboBox_FirstSheetFamily.Items.GetItemAt(0);
+            }
+
+            if (TitleBlocksForFirstSheetTypeCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FirstSheetTypeName) != null)
+            {
+                comboBox_FirstSheetType.SelectedItem = TitleBlocksForFirstSheetTypeCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FirstSheetTypeName);
+            }
+            else
+            {
+                comboBox_FirstSheetType.SelectedItem = comboBox_FirstSheetType.Items.GetItemAt(0);
+            }
+
+            if (TitleBlocksForFollowingSheetsCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsFamilyName) != null)
+            {
+                comboBox_FollowingSheetsFamily.SelectedItem = TitleBlocksForFollowingSheetsCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsFamilyName);
+            }
+            else
+            {
+                comboBox_FollowingSheetsFamily.SelectedItem = comboBox_FollowingSheetsFamily.Items.GetItemAt(0);
+            }
+
+            if (TitleBlocksForFollowingSheetsTypeCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsTypeName) != null)
+            {
+                comboBox_FollowingSheetsType.SelectedItem = TitleBlocksForFollowingSheetsTypeCollection.FirstOrDefault(tb => tb.Name == ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsTypeName);
+            }
+            else
+            {
+                comboBox_FollowingSheetsType.SelectedItem = comboBox_FollowingSheetsType.Items.GetItemAt(0);
+            }
+
+            if (FamilyInstanceParametersCollection.FirstOrDefault(p => p.Definition.Name == ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName) != null)
+            {
+                comboBox_SheetFormatParameter.SelectedItem = FamilyInstanceParametersCollection.FirstOrDefault(p => p.Definition.Name == ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName);
+            }
+            else
+            {
+                comboBox_SheetFormatParameter.SelectedItem = comboBox_SheetFormatParameter.Items.GetItemAt(0);
+            }
+
+            if (ParamDefinitionsCollection.FirstOrDefault(pd => pd.Name == ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName) != null)
+            {
+                comboBox_GroupingParameter.SelectedItem = ParamDefinitionsCollection.FirstOrDefault(pd => pd.Name == ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName);
+            }
+            else
+            {
+                comboBox_GroupingParameter.SelectedItem = comboBox_GroupingParameter.Items.GetItemAt(0);
+            }
+
+            if (ViewScheduleSheetSpreaderSettingsItem.XOffsetValue != null)
+            {
+                textBox_XOffset.Text = ViewScheduleSheetSpreaderSettingsItem.XOffsetValue;
+            }
+            else
+            {
+                textBox_XOffset.Text = "-400";
+            }
+            if (ViewScheduleSheetSpreaderSettingsItem.YOffsetValue != null)
+            {
+                textBox_YOffset.Text = ViewScheduleSheetSpreaderSettingsItem.YOffsetValue;
+            }
+            else
+            {
+                textBox_YOffset.Text = "292";
+            }
+            if (ViewScheduleSheetSpreaderSettingsItem.FirstSheetNumberValue != null)
+            {
+                textBox_FirstSheetNumber.Text = ViewScheduleSheetSpreaderSettingsItem.FirstSheetNumberValue;
+            }
+            else
+            {
+                textBox_FirstSheetNumber.Text = "69";
+            }
+
+            if (ViewScheduleSheetSpreaderSettingsItem.HeaderInSpecificationHeaderSelectedButtonName != null)
+            {
+                if (ViewScheduleSheetSpreaderSettingsItem.HeaderInSpecificationHeaderSelectedButtonName == "radioButton_No")
+                {
+                    radioButton_No.IsChecked = true;
+                }
+            }
+
+            if (ViewScheduleSheetSpreaderSettingsItem.SpecificationHeaderHeightValue != null)
+            {
+                textBox_SpecificationHeaderHeight.Text = ViewScheduleSheetSpreaderSettingsItem.SpecificationHeaderHeightValue;
+            }
+            else
+            {
+                textBox_SpecificationHeaderHeight.Text = "40";
             }
         }
     }
