@@ -69,6 +69,28 @@ namespace ViewScheduleSheetSpreader
                 placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - specificationHeaderHeight;
             }
 
+            List<ElementId> readonlyGruppingParameterElementIdList = new List<ElementId>();
+            foreach (ViewSchedule viewSchedule in selectedViewScheduleList)
+            {
+                List<ElementId> allElemsInViewSchedule = new FilteredElementCollector(doc, viewSchedule.Id).ToElementIds().ToList();
+                foreach(ElementId elementId in allElemsInViewSchedule)
+                {
+                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).IsReadOnly)
+                    {
+                        readonlyGruppingParameterElementIdList.Add(elementId);
+                    }
+                }
+            }
+            if(readonlyGruppingParameterElementIdList.Count > 0)
+            {
+                string errorMassage = $"В некоторых элементах, попадающих в спецификации, параметр \"{groupingParameterDefinition.Name}\" доступен только для чтения. " +
+                    $"Причины могут быть различными. К примеру, параметр группирования может быть параметром типа или параметром вложенного семейства. " +
+                    $"Прежде чем продолжыть, необходимо сделать параметр \"{groupingParameterDefinition.Name}\" доступным для редактирования.";
+                ReadonlyParameterWPF readonlyParameterWPF = new ReadonlyParameterWPF(errorMassage, readonlyGruppingParameterElementIdList);
+                readonlyParameterWPF.ShowDialog();
+                return Result.Cancelled;
+            }
+
             int startSheetNumber = sheetNumber;
             ViewSheet currentViewSheet = null;
             XYZ viewLocation = new XYZ(xOffset, yOffset, 0);
@@ -147,7 +169,7 @@ namespace ViewScheduleSheetSpreader
                                 ElementCategoryFilter elementCategoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_TitleBlocks);
                                 FamilyInstance firstViewSheetFrameFamilyInstance = doc.GetElement(currentViewSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
                                 firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set(sheetNumber.ToString());
-                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация технологического оборудования, изделий и материалов");
+                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
                                 if (sheetSizeVariantName == "radioButton_Instance")
                                 {
                                     firstViewSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
@@ -162,15 +184,51 @@ namespace ViewScheduleSheetSpreader
                             {
                                 if (groupingParameterDefinition.ParameterType == ParameterType.Text)
                                 {
-                                    doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                    {
+                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                    }
+                                    else
+                                    {
+                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                        return Result.Cancelled;
+                                    }
                                 }
                                 else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
                                 {
-                                    doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                    {
+                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                    }
+                                    else
+                                    {
+                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                        return Result.Cancelled;
+                                    }
                                 }
                                 else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
                                 {
-                                    doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                    {
+                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                    }
+                                    else
+                                    {
+                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                        return Result.Cancelled;
+                                    }
                                 }
                             }
                             t.Commit();
@@ -303,7 +361,7 @@ namespace ViewScheduleSheetSpreader
                                 ElementCategoryFilter elementCategoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_TitleBlocks);
                                 FamilyInstance firstViewSheetFrameFamilyInstance = doc.GetElement(currentViewSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
                                 firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set(sheetNumber.ToString());
-                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация технологического оборудования, изделий и материалов");
+                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
                                 if (sheetSizeVariantName == "radioButton_Instance")
                                 {
                                     firstViewSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);

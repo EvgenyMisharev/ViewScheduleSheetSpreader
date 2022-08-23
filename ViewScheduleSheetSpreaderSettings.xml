@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<ViewScheduleSheetSpreaderSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <SheetSizeSelectedButtonName>radioButton_Type</SheetSizeSelectedButtonName>
+  <FirstSheetFamilyName>РОВЕН_Штамп-ГОСТ-Ф3-СО</FirstSheetFamilyName>
+  <FirstSheetTypeName>А3А</FirstSheetTypeName>
+  <FollowingSheetsFamilyName>РОВЕН_Штамп-ГОСТ-Ф6-СО</FollowingSheetsFamilyName>
+  <FollowingSheetsTypeName>А3А</FollowingSheetsTypeName>
+  <GroupingParameterName>РОВЕН_Пустая строка</GroupingParameterName>
+  <XOffsetValue>20</XOffsetValue>
+  <YOffsetValue>292</YOffsetValue>
+  <FirstSheetNumberValue>101</FirstSheetNumberValue>
+  <HeaderInSpecificationHeaderSelectedButtonName>radioButton_No</HeaderInSpecificationHeaderSelectedButtonName>
+  <SpecificationHeaderHeightValue>32</SpecificationHeaderHeightValue>
+</ViewScheduleSheetSpreaderSettings>

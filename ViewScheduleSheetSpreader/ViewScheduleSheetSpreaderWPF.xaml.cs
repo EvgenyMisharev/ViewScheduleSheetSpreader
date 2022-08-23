@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Collections.ObjectModel;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 
 namespace ViewScheduleSheetSpreader
 {
@@ -127,7 +128,7 @@ namespace ViewScheduleSheetSpreader
 
         private void comboBox_FirstSheetFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            List<ElementId> familySymbolsIdList = ((sender as ComboBox).SelectedItem as Family).GetFamilySymbolIds().ToList();
+            List<ElementId> familySymbolsIdList = ((sender as System.Windows.Controls.ComboBox).SelectedItem as Family).GetFamilySymbolIds().ToList();
             TitleBlocksForFirstSheetTypeCollection = new ObservableCollection<FamilySymbol>();
             if (familySymbolsIdList.Count != 0)
             {
@@ -144,7 +145,7 @@ namespace ViewScheduleSheetSpreader
 
         private void comboBox_FollowingSheetsFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            List<ElementId> familySymbolsIdList = ((sender as ComboBox).SelectedItem as Family).GetFamilySymbolIds().ToList();
+            List<ElementId> familySymbolsIdList = ((sender as System.Windows.Controls.ComboBox).SelectedItem as Family).GetFamilySymbolIds().ToList();
             TitleBlocksForFollowingSheetsTypeCollection = new ObservableCollection<FamilySymbol>();
             if (familySymbolsIdList.Count != 0)
             {
@@ -161,7 +162,7 @@ namespace ViewScheduleSheetSpreader
 
         private void comboBox_FirstSheetType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            FamilySymbol selectedFamilySymbol = (sender as ComboBox).SelectedItem as FamilySymbol;
+            FamilySymbol selectedFamilySymbol = (sender as System.Windows.Controls.ComboBox).SelectedItem as FamilySymbol;
             ParameterSet parameterSet = null;
             if (selectedFamilySymbol != null)
             {
@@ -180,6 +181,12 @@ namespace ViewScheduleSheetSpreader
                     comboBox_SheetFormatParameter.ItemsSource = FamilyInstanceParametersCollection;
                     comboBox_SheetFormatParameter.DisplayMemberPath = "Definition.Name";
                     comboBox_SheetFormatParameter.SelectedItem = comboBox_SheetFormatParameter.Items.GetItemAt(0);
+                }
+                else
+                {
+                    TaskDialog.Show("Revit", "Если размер формата листа настраивается через параметр экземпляра" +
+                        ", пред запуском плагина необходимо вручную создать в проекте один лист" +
+                        ", который планируется использовать как первый лист спецификации. Это необходимо для заполнения выпадающего списка \"Параметр формата листа\".");
                 }
             }
         }
@@ -260,7 +267,10 @@ namespace ViewScheduleSheetSpreader
             ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsTypeName = FollowingSheetType.Name;
 
             SheetFormatParameter = comboBox_SheetFormatParameter.SelectedItem as Parameter;
-            ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName = SheetFormatParameter.Definition.Name;
+            if(SheetFormatParameter != null)
+            {
+                ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName = SheetFormatParameter.Definition.Name;
+            }
 
             GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
             ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName = GroupingParameterDefinition.Name;
@@ -336,13 +346,16 @@ namespace ViewScheduleSheetSpreader
                 comboBox_FollowingSheetsType.SelectedItem = comboBox_FollowingSheetsType.Items.GetItemAt(0);
             }
 
-            if (FamilyInstanceParametersCollection.FirstOrDefault(p => p.Definition.Name == ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName) != null)
+            if (FamilyInstanceParametersCollection != null && FamilyInstanceParametersCollection.FirstOrDefault(p => p.Definition.Name == ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName) != null)
             {
                 comboBox_SheetFormatParameter.SelectedItem = FamilyInstanceParametersCollection.FirstOrDefault(p => p.Definition.Name == ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName);
             }
             else
             {
-                comboBox_SheetFormatParameter.SelectedItem = comboBox_SheetFormatParameter.Items.GetItemAt(0);
+                if(comboBox_SheetFormatParameter.Items.Count != 0)
+                {
+                    comboBox_SheetFormatParameter.SelectedItem = comboBox_SheetFormatParameter.Items.GetItemAt(0);
+                }
             }
 
             if (ParamDefinitionsCollection.FirstOrDefault(pd => pd.Name == ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName) != null)
