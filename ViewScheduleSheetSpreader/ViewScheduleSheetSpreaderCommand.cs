@@ -88,7 +88,7 @@ namespace ViewScheduleSheetSpreader
                     $"Прежде чем продолжыть, необходимо сделать параметр \"{groupingParameterDefinition.Name}\" доступным для редактирования.";
                 ReadonlyParameterWPF readonlyParameterWPF = new ReadonlyParameterWPF(errorMassage, readonlyGruppingParameterElementIdList);
                 readonlyParameterWPF.ShowDialog();
-                return Result.Cancelled;
+                //return Result.Cancelled; БОЛЬШОЙ ВОПРОС ОСТАВИТЬ ТАК ИЛИ НЕТ!!!
             }
 
             int startSheetNumber = sheetNumber;
@@ -186,7 +186,11 @@ namespace ViewScheduleSheetSpreader
                                 {
                                     if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
                                     {
-                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                        {
+                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                        }
                                     }
                                     else
                                     {
@@ -202,7 +206,11 @@ namespace ViewScheduleSheetSpreader
                                 {
                                     if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
                                     {
-                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                        {
+                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        }
                                     }
                                     else
                                     {
@@ -218,7 +226,11 @@ namespace ViewScheduleSheetSpreader
                                 {
                                     if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
                                     {
-                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                        {
+                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        }
                                     }
                                     else
                                     {
