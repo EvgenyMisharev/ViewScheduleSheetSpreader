@@ -356,15 +356,63 @@ namespace ViewScheduleSheetSpreader
                                 {
                                     if (groupingParameterDefinition.ParameterType == ParameterType.Text)
                                     {
-                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                        {
+                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                            {
+                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                            }
+                                        }
+                                        else
+                                        {
+                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                            return Result.Cancelled;
+                                        }
                                     }
                                     else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
                                     {
-                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                        {
+                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                            {
+                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                            return Result.Cancelled;
+                                        }
                                     }
                                     else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
                                     {
-                                        doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                        {
+                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                            {
+                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                            return Result.Cancelled;
+                                        }
                                     }
                                 }
                                 t.Commit();
