@@ -182,6 +182,7 @@ namespace ViewScheduleSheetSpreader
                             t.Start("Заполнение номера листа в группировку");
                             foreach (ElementId elementId in idList)
                             {
+#if R2019 || R2020 || R2021 || R2022
                                 if (groupingParameterDefinition.ParameterType == ParameterType.Text)
                                 {
                                     if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
@@ -242,6 +243,68 @@ namespace ViewScheduleSheetSpreader
                                         return Result.Cancelled;
                                     }
                                 }
+#else
+                                if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
+                                {
+                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                    {
+                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                        {
+                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                        }
+                                    }
+                                    else
+                                    {
+                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                        return Result.Cancelled;
+                                    }
+                                }
+                                else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
+                                {
+                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                    {
+                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                        {
+                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                        return Result.Cancelled;
+                                    }
+                                }
+                                else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
+                                {
+                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                    {
+                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                        {
+                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                        return Result.Cancelled;
+                                    }
+                                }
+#endif
                             }
                             t.Commit();
 
@@ -258,6 +321,7 @@ namespace ViewScheduleSheetSpreader
 
                             //Создание фильтра по выбранному параметру
                             ScheduleFilter filterByGroupingParameter = null;
+#if R2019 || R2020 || R2021 || R2022
                             if (groupingParameterDefinition.ParameterType == ParameterType.Text)
                             {
                                 filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber.ToString());
@@ -270,12 +334,28 @@ namespace ViewScheduleSheetSpreader
                             {
                                 filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
                             }
+#else
+                            if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
+                            {
+                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber.ToString());
+                            }
+                            else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
+                            {
+                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
+                            }
+                            else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
+                            {
+                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
+                            }
+#endif
+
 
                             //Проверка наличия фильтра в спецификации
                             IList<ScheduleFilter> filtersInViewSchedule = definition.GetFilters();
                             bool filterInViewScheduleCheck = false;
                             foreach (ScheduleFilter filterInViewSchedule in filtersInViewSchedule)
                             {
+#if R2019 || R2020 || R2021 || R2022
                                 if (filterInViewSchedule.FieldId.Equals(filterByGroupingParameter.FieldId) 
                                     && filterInViewSchedule.FilterType == filterByGroupingParameter.FilterType)
                                 {
@@ -296,9 +376,31 @@ namespace ViewScheduleSheetSpreader
                                     definition.SetFilter(filterIndex, filterInViewSchedule);
                                     break;
                                 }
+#else
+                                if (filterInViewSchedule.FieldId.Equals(filterByGroupingParameter.FieldId)
+                                    && filterInViewSchedule.FilterType == filterByGroupingParameter.FilterType)
+                                {
+                                    filterInViewScheduleCheck = true;
+                                    int filterIndex = filtersInViewSchedule.IndexOf(filterInViewSchedule);
+                                    if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
+                                    {
+                                        filterInViewSchedule.SetValue(sheetNumber.ToString());
+                                    }
+                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
+                                    {
+                                        filterInViewSchedule.SetValue(sheetNumber);
+                                    }
+                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
+                                    {
+                                        filterInViewSchedule.SetValue(sheetNumber);
+                                    }
+                                    definition.SetFilter(filterIndex, filterInViewSchedule);
+                                    break;
+                                }
+#endif
                             }
                             //Добавление фильтра, если он отсутствует
-                            if(!filterInViewScheduleCheck)
+                            if (!filterInViewScheduleCheck)
                             {
                                 definition.AddFilter(filterByGroupingParameter);
                             }
@@ -354,6 +456,7 @@ namespace ViewScheduleSheetSpreader
                                 t.Start("Заполнение номера листа в группировку");
                                 foreach (ElementId elementId in idList)
                                 {
+#if R2019 || R2020 || R2021 || R2022
                                     if (groupingParameterDefinition.ParameterType == ParameterType.Text)
                                     {
                                         if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
@@ -414,6 +517,68 @@ namespace ViewScheduleSheetSpreader
                                             return Result.Cancelled;
                                         }
                                     }
+#else
+                                    if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
+                                    {
+                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                        {
+                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                            {
+                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
+                                            }
+                                        }
+                                        else
+                                        {
+                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                            return Result.Cancelled;
+                                        }
+                                    }
+                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
+                                    {
+                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                        {
+                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                            {
+                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                            return Result.Cancelled;
+                                        }
+                                    }
+                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
+                                    {
+                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
+                                        {
+                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
+                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
+                                            {
+                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
+                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
+                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
+                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
+
+                                            return Result.Cancelled;
+                                        }
+                                    }
+#endif
                                 }
                                 t.Commit();
                                 t.Start("Создание последующего листа");
@@ -458,12 +623,21 @@ namespace ViewScheduleSheetSpreader
                 if(param != null)
                 {
                     Definition def = param.GetDefinition();
+#if R2019 || R2020 || R2021 || R2022
                     if (def.Name == groupingParameterDefinition.Name
                         && def.ParameterGroup == groupingParameterDefinition.ParameterGroup
                         && def.ParameterType == groupingParameterDefinition.ParameterType)
                     {
                         return foundField;
                     }
+#else
+                    if (def.Name == groupingParameterDefinition.Name
+                        && def.ParameterGroup == groupingParameterDefinition.ParameterGroup
+                        && def.GetDataType() == groupingParameterDefinition.GetDataType())
+                    {
+                        return foundField;
+                    }
+#endif
                 }
             }
             return null;
