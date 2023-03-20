@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:ViewScheduleSheetSpreader"
              mc:Ignorable="d" 
              Title="Требует корректировки" Height="400" Width="400"
-             WindowStyle="ToolWindow" WindowStartupLocation="CenterScreen" KeyDown="ReadonlyParameterWPF_KeyDown">
+             WindowStyle="SingleBorderWindow" ResizeMode="NoResize" Icon="Resources/citrus.ico" WindowStartupLocation="CenterScreen" KeyDown="ReadonlyParameterWPF_KeyDown">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="150"/>

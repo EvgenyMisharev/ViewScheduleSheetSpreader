@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:ViewScheduleSheetSpreader"
              mc:Ignorable="d" 
              Title="Спецификации на листы" Height="680" Width="700" MinHeight="680" MinWidth="700"
-             WindowStyle="ToolWindow" WindowStartupLocation="CenterScreen" KeyDown="ViewScheduleSheetSpreaderWPF_KeyDown">
+             WindowStyle="SingleBorderWindow" ResizeMode="NoResize" Icon="Resources/citrus.ico" WindowStartupLocation="CenterScreen" KeyDown="ViewScheduleSheetSpreaderWPF_KeyDown">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>

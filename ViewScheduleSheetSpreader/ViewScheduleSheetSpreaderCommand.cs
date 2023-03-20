@@ -75,7 +75,7 @@ namespace ViewScheduleSheetSpreader
                 List<ElementId> allElemsInViewSchedule = new FilteredElementCollector(doc, viewSchedule.Id).ToElementIds().ToList();
                 foreach(ElementId elementId in allElemsInViewSchedule)
                 {
-                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).IsReadOnly)
+                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) == null || doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).IsReadOnly)
                     {
                         readonlyGruppingParameterElementIdList.Add(elementId);
                     }

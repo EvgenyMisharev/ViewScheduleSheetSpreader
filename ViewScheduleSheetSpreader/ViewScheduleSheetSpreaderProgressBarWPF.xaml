@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:ViewScheduleSheetSpreader"
              mc:Ignorable="d" d:DesignWidth="450"
              Title="Спецификации обрабатываются. Нужно немного подождать..." MaxHeight="185" MaxWidth="450"
-             MinHeight="185" MinWidth="450" WindowStyle="ToolWindow" WindowStartupLocation="CenterScreen"
+             MinHeight="185" MinWidth="450" WindowStyle="SingleBorderWindow" ResizeMode="NoResize" Icon="Resources/citrus.ico" WindowStartupLocation="CenterScreen"
              Topmost="True" Height="185" Width="450">
     <Grid Margin="0">
         <Label x:Name="label_SpecificationProcessing" Content="Обработка спецификаций" Margin="10,0" VerticalAlignment="Top" Height="25" VerticalContentAlignment="Center"/>
