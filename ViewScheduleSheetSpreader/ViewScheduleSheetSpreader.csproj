@@ -64,7 +64,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\R2023\</OutputPath>
+    <OutputPath>..\</OutputPath>
     <DefineConstants>DEBUG;R2023</DefineConstants>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <AssemblyName>$(AssemblyName)</AssemblyName>
@@ -179,14 +179,9 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="ReadonlyParameterWPF.xaml.cs">
-      <DependentUpon>ReadonlyParameterWPF.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="ViewScheduleListToXML.cs" />
     <Compile Include="ViewScheduleSheetSpreaderCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ViewScheduleSheetSpreaderProgressBarWPF.xaml.cs">
-      <DependentUpon>ViewScheduleSheetSpreaderProgressBarWPF.xaml</DependentUpon>
-    </Compile>
     <Compile Include="ViewScheduleSheetSpreaderSettings.cs" />
     <Compile Include="ViewScheduleSheetSpreaderWPF.xaml.cs">
       <DependentUpon>ViewScheduleSheetSpreaderWPF.xaml</DependentUpon>
@@ -196,14 +191,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Page Include="ReadonlyParameterWPF.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="ViewScheduleSheetSpreaderProgressBarWPF.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="ViewScheduleSheetSpreaderWPF.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

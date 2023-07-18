@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:ViewScheduleSheetSpreader"
              mc:Ignorable="d" 
-             Title="Спецификации на листы" Height="680" Width="700" MinHeight="680" MinWidth="700"
+             Title="Спецификации на листы" Height="750" Width="700" MinHeight="750" MinWidth="700"
              WindowStyle="SingleBorderWindow" ResizeMode="NoResize" Icon="Resources/citrus.ico" WindowStartupLocation="CenterScreen" KeyDown="ViewScheduleSheetSpreaderWPF_KeyDown">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -33,59 +33,69 @@
             <Button x:Name="btn_MoveUp" Content="↑" HorizontalAlignment="Center" Margin="10,0,10,10" VerticalAlignment="Bottom" Width="20" Height="25" Click="btn_MoveUp_Click" RenderTransformOrigin="0.454,1.747" FontSize="14" Grid.Column="1" Grid.Row="1"/>
             <Button x:Name="btn_MoveDown" Content="↓" HorizontalAlignment="Center" Margin="10,0,10,50" VerticalAlignment="Bottom" Width="20" Height="25" Click="btn_MoveDown_Click" FontSize="14" Grid.Column="1" Grid.Row="1"/>
         </Grid>
+ 
+        <StackPanel Grid.Column="1">
+            <GroupBox x:Name="groupBox_SheetSize" Grid.Column="1" Header="Размер листа по:" Height="60" VerticalAlignment="Top" Margin="10,4,10,0">
+                <Grid Margin="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="22*"/>
+                        <ColumnDefinition Width="87*"/>
+                        <ColumnDefinition Width="109*"/>
+                    </Grid.ColumnDefinitions>
+                    <RadioButton x:Name="radioButton_Instance" Content="Экземпляр" HorizontalAlignment="Center" Margin="15,11" VerticalAlignment="Center" IsChecked="True" Checked="radioButton_Checked" Grid.ColumnSpan="2"/>
+                    <RadioButton x:Name="radioButton_Type" Content="Тип" Margin="35,11" VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="2" Checked="radioButton_Checked"/>
+                </Grid>
+            </GroupBox>
 
-        <Label x:Name="label_FirstSheetFamily" Content="Семейство 1-го листа:" Grid.Column="1" Margin="10,64,10,0" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox_FirstSheetFamily" Grid.Column="1" HorizontalAlignment="Left" Margin="10,90,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center" SelectionChanged="comboBox_FirstSheetFamily_SelectionChanged"/>
+            <Label x:Name="label_FirstSheetFamily" Content="Семейство 1-го листа:" Grid.Column="1" Margin="10,0" VerticalAlignment="Top"/>
+            <ComboBox x:Name="comboBox_FirstSheetFamily" Grid.Column="1" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center" SelectionChanged="comboBox_FirstSheetFamily_SelectionChanged"/>
 
-        <Label x:Name="label_FirstSheetType" Content="Тип 1-го листа:" Grid.Column="1" Margin="10,116,10,0" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox_FirstSheetType" Grid.Column="1" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center" SelectionChanged="comboBox_FirstSheetType_SelectionChanged"/>
+            <Label x:Name="label_FirstSheetType" Content="Тип 1-го листа:" Grid.Column="1" Margin="10,5,10,0" VerticalAlignment="Top"/>
+            <ComboBox x:Name="comboBox_FirstSheetType" Grid.Column="1" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center" SelectionChanged="comboBox_FirstSheetType_SelectionChanged"/>
 
-        <Label x:Name="label_FollowingSheetsFamily" Content="Семейство последующих листов:" Grid.Column="1" VerticalAlignment="Top" Margin="10,168,10,0"/>
-        <ComboBox x:Name="comboBox_FollowingSheetsFamily" Grid.Column="1" HorizontalAlignment="Left" Margin="10,194,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center" SelectionChanged ="comboBox_FollowingSheetsFamily_SelectionChanged"/>
+            <Label x:Name="label_FollowingSheetsFamily" Content="Семейство последующих листов:" Grid.Column="1" VerticalAlignment="Top" Margin="10,5,10,0"/>
+            <ComboBox x:Name="comboBox_FollowingSheetsFamily" Grid.Column="1" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center" SelectionChanged ="comboBox_FollowingSheetsFamily_SelectionChanged"/>
 
-        <Label x:Name="label_FollowingSheetsType" Content="Тип последующих листов:" Grid.Column="1" VerticalAlignment="Top" Margin="10,220,10,0"/>
-        <ComboBox x:Name="comboBox_FollowingSheetsType" Grid.Column="1" HorizontalAlignment="Left" Margin="10,246,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center"/>
+            <Label x:Name="label_FollowingSheetsType" Content="Тип последующих листов:" Grid.Column="1" VerticalAlignment="Top" Margin="10,5,10,0"/>
+            <ComboBox x:Name="comboBox_FollowingSheetsType" Grid.Column="1" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center"/>
 
-        <Label x:Name="label_SheetFormatParameter" Content="Параметр формата листа:" Grid.Column="1" Margin="10,272,10,0" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox_SheetFormatParameter" Grid.Column="1" HorizontalAlignment="Left" Margin="10,298,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center"/>
+            <Label x:Name="label_SheetFormatParameter" Content="Параметр формата листа:" Grid.Column="1" Margin="10,5,10,0" VerticalAlignment="Top"/>
+            <ComboBox x:Name="comboBox_SheetFormatParameter" Grid.Column="1" HorizontalAlignment="Left" Margin="10,0,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center"/>
 
-        <Label x:Name="label_GroupingParameter" Content="Параметр для группирования:" Grid.Column="1" Margin="10,324,10,0" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox_GroupingParameter" Grid.Column="1" HorizontalAlignment="Left" Margin="10,350,0,0" VerticalAlignment="Top" Width="230" Height="26" VerticalContentAlignment="Center"/>
-
-        <Label x:Name="label_XOffset" Content="Смещение по X:" Grid.Column="1" Margin="10,385,125,0" VerticalAlignment="Top" HorizontalAlignment="Left" VerticalContentAlignment="Center"/>
-        <TextBox x:Name="textBox_XOffset" Grid.Column="1" Height="26" Margin="140,385,10,0" TextWrapping="Wrap" Text="-400" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
-        <Label x:Name="label_YOffset" Content="Смещение по Y:" Grid.Column="1" Margin="10,415,125,0" VerticalAlignment="Top" VerticalContentAlignment="Center"/>
-        <TextBox x:Name="textBox_YOffset" Grid.Column="1" Height="26" Margin="140,415,10,0" TextWrapping="Wrap" Text="292" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
-
-        <Label x:Name="label_FirstSheetNumber" Content="Номер 1-го листа:" Grid.Column="1" Margin="10,445,125,0" VerticalAlignment="Top" VerticalContentAlignment="Center"/>
-        <TextBox x:Name="textBox_FirstSheetNumber" Grid.Column="1" Height="26" Margin="140,445,10,0" TextWrapping="Wrap" Text="69" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
-
-        <Label x:Name="label_SpecificationHeaderHeight" Content="Высота шапки:" Grid.Column="1" Margin="10,540,125,0" VerticalAlignment="Top" VerticalContentAlignment="Center"/>
-        <TextBox x:Name="textBox_SpecificationHeaderHeight" Grid.Column="1" Height="26" Margin="140,540,10,0" TextWrapping="Wrap" Text="40" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
-
-        <GroupBox x:Name="groupBox_SheetSize" Grid.Column="1" Header="Размер листа по:" Height="60" VerticalAlignment="Top" Margin="10,4,10,0">
-            <Grid Margin="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="22*"/>
-                    <ColumnDefinition Width="87*"/>
-                    <ColumnDefinition Width="109*"/>
-                </Grid.ColumnDefinitions>
-                <RadioButton x:Name="radioButton_Instance" Content="Экземпляр" HorizontalAlignment="Center" Margin="15,11" VerticalAlignment="Center" IsChecked="True" Checked="radioButton_Checked" Grid.ColumnSpan="2"/>
-                <RadioButton x:Name="radioButton_Type" Content="Тип" Margin="35,11" VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="2" Checked="radioButton_Checked"/>
+            <Grid>
+                <Label x:Name="label_XOffset" Content="Смещение по X:" Grid.Column="1" Margin="10,10,125,0" VerticalAlignment="Top" HorizontalAlignment="Left" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="textBox_XOffset" Grid.Column="1" Height="26" Margin="140,10,10,0" TextWrapping="Wrap" Text="-400" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                <Label x:Name="label_YOffset" Content="Смещение по Y:" Grid.Column="1" Margin="10,40,125,0" VerticalAlignment="Top" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="textBox_YOffset" Grid.Column="1" Height="26" Margin="140,40,10,0" TextWrapping="Wrap" Text="292" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
             </Grid>
-        </GroupBox>
 
-        <GroupBox x:Name="groupBox_HeaderInSpecificationHeader" Grid.Column="1" Header="Шапка в заголовке спецификации:" Height="60" VerticalAlignment="Top" Margin="10,475,10,0">
-            <Grid Margin="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="22*"/>
-                    <ColumnDefinition Width="87*"/>
-                    <ColumnDefinition Width="109*"/>
-                </Grid.ColumnDefinitions>
-                <RadioButton x:Name="radioButton_Yes" Content="Да" HorizontalAlignment="Center" Margin="15,11" VerticalAlignment="Center" IsChecked="True" Checked="radioButton_HeaderInSpecificationHeader_Checked"  Grid.ColumnSpan="2"/>
-                <RadioButton x:Name="radioButton_No" Content="Нет" Margin="35,11" VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="2" Checked="radioButton_HeaderInSpecificationHeader_Checked"/>
+            <Grid>
+                <Label x:Name="label_FirstSheetNumber" Content="Номер 1-го листа:" Grid.Column="1" Margin="10,10,125,0" VerticalAlignment="Top" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="textBox_FirstSheetNumber" Grid.Column="1" Height="26" Margin="140,10,10,0" TextWrapping="Wrap" Text="69" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
             </Grid>
-        </GroupBox>
+            
+            <Grid>
+                <Label x:Name="label_SheetNumberSuffix" Content="Суффикс номера:" Grid.Column="1" Margin="10,5,125,0" VerticalAlignment="Top" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="textBox_SheetNumberSuffix" Grid.Column="1" Height="26" Margin="140,5,10,0" TextWrapping="Wrap" Text="а" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            </Grid>
+
+            <GroupBox x:Name="groupBox_HeaderInSpecificationHeader" Grid.Column="1" Header="Шапка в заголовке спецификации:" Height="60" VerticalAlignment="Top" Margin="10,10,10,0">
+                <Grid Margin="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="22*"/>
+                        <ColumnDefinition Width="87*"/>
+                        <ColumnDefinition Width="109*"/>
+                    </Grid.ColumnDefinitions>
+                    <RadioButton x:Name="radioButton_Yes" Content="Да" HorizontalAlignment="Center" Margin="15,11" VerticalAlignment="Center" IsChecked="True" Checked="radioButton_HeaderInSpecificationHeader_Checked"  Grid.ColumnSpan="2"/>
+                    <RadioButton x:Name="radioButton_No" Content="Нет" Margin="35,11" VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="2" Checked="radioButton_HeaderInSpecificationHeader_Checked"/>
+                </Grid>
+            </GroupBox>
+            
+            <Grid>
+                <Label x:Name="label_SpecificationHeaderHeight" Content="Высота шапки:" Grid.Column="1" Margin="10,10,125,0" VerticalAlignment="Top" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="textBox_SpecificationHeaderHeight" Grid.Column="1" Height="26" Margin="140,10,10,0" TextWrapping="Wrap" Text="40" VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            </Grid>
+        </StackPanel>
 
         <Button x:Name="btn_Ok" Content="Ок" HorizontalAlignment="Right" Margin="0,0,125,10" VerticalAlignment="Bottom" Width="100" Height="25" Click="btn_Ok_Click" Grid.Row="1" Grid.Column="2"/>
         <Button x:Name="btn_Cancel" Content="Отмена" HorizontalAlignment="Right" Margin="0,0,10,10" VerticalAlignment="Bottom" Width="100" Height="25" Click="btn_Cancel_Click" Grid.Row="1" Grid.Column="2"/>

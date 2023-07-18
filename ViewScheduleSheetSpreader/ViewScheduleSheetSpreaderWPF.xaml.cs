@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Collections.ObjectModel;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
 
 namespace ViewScheduleSheetSpreader
 {
@@ -19,7 +19,7 @@ namespace ViewScheduleSheetSpreader
         ObservableCollection<FamilySymbol> TitleBlocksForFirstSheetTypeCollection;
         ObservableCollection<FamilySymbol> TitleBlocksForFollowingSheetsTypeCollection;
         ObservableCollection<Parameter> FamilyInstanceParametersCollection;
-        ObservableCollection<Definition> ParamDefinitionsCollection;
+
         public FamilySymbol FirstSheetType;
         public FamilySymbol FollowingSheetType;
         public Parameter SheetFormatParameter;
@@ -30,19 +30,19 @@ namespace ViewScheduleSheetSpreader
         public int FirstSheetNumber;
         public string HeaderInSpecificationHeaderVariantName;
         public double SpecificationHeaderHeight;
+        public string SheetNumberSuffix;
 
         ViewScheduleSheetSpreaderSettings ViewScheduleSheetSpreaderSettingsItem;
-
-        public ViewScheduleSheetSpreaderWPF(Document doc, List<ViewSchedule> viewScheduleList, List<Family> titleBlockFamilysList, List<Definition> paramDefinitionsList)
+        List<string> SelectedViewScheduleList;
+        public ViewScheduleSheetSpreaderWPF(Document doc, List<ViewSchedule> viewScheduleList, List<Family> titleBlockFamilysList)
         {
             Doc = doc;
             ViewScheduleInProjectCollection = new ObservableCollection<ViewSchedule>(viewScheduleList);
             SelectedViewScheduleCollection = new ObservableCollection<ViewSchedule>();
             TitleBlocksForFirstSheetCollection = new ObservableCollection<Family>(titleBlockFamilysList);
             TitleBlocksForFollowingSheetsCollection = new ObservableCollection<Family>(titleBlockFamilysList);
-            ParamDefinitionsCollection = new ObservableCollection<Definition>(paramDefinitionsList.OrderBy(df => df.Name));
-
             ViewScheduleSheetSpreaderSettingsItem = new ViewScheduleSheetSpreaderSettings().GetSettings();
+            SelectedViewScheduleList = new ViewScheduleListToXML().GetSettings();
 
             InitializeComponent();
 
@@ -58,9 +58,6 @@ namespace ViewScheduleSheetSpreader
             comboBox_FollowingSheetsFamily.ItemsSource = TitleBlocksForFollowingSheetsCollection;
             comboBox_FollowingSheetsFamily.DisplayMemberPath = "Name";
 
-            comboBox_GroupingParameter.ItemsSource = ParamDefinitionsCollection;
-            comboBox_GroupingParameter.DisplayMemberPath = "Name";
-
             SetSavedSettingsValueToForm();
         }
 
@@ -70,13 +67,12 @@ namespace ViewScheduleSheetSpreader
                 .SelectedItems
                 .Cast<ViewSchedule>()
                 .ToList();
-            foreach(ViewSchedule vs in viewScheduleInProjectCollectionSelectedItems)
+            foreach (ViewSchedule vs in viewScheduleInProjectCollectionSelectedItems)
             {
                 ViewScheduleInProjectCollection.Remove(vs);
                 SelectedViewScheduleCollection.Add(vs);
             }
         }
-
         private void btn_Exclude_Click(object sender, RoutedEventArgs e)
         {
             List<ViewSchedule> selectedViewScheduleCollectionSelectedItems = listBox_SelectedViewScheduleCollection
@@ -91,7 +87,6 @@ namespace ViewScheduleSheetSpreader
             ViewScheduleInProjectCollection = new ObservableCollection<ViewSchedule>(ViewScheduleInProjectCollection.OrderBy(vs => vs.Name, new AlphanumComparatorFastString()));
             listBox_ViewScheduleInProjectCollection.ItemsSource = ViewScheduleInProjectCollection;
         }
-
         private void btn_MoveUp_Click(object sender, RoutedEventArgs e)
         {
             List<ViewSchedule> selectedViewScheduleCollectionSelectedItems = listBox_SelectedViewScheduleCollection
@@ -100,14 +95,14 @@ namespace ViewScheduleSheetSpreader
                 .ToList();
             foreach (ViewSchedule vs in selectedViewScheduleCollectionSelectedItems)
             {
-                if(SelectedViewScheduleCollection.IndexOf(vs) != 0)
+                if (SelectedViewScheduleCollection.IndexOf(vs) != 0)
                 {
                     int oldIndex = SelectedViewScheduleCollection.IndexOf(vs);
                     int newIndex = SelectedViewScheduleCollection.IndexOf(vs) - 1;
                     SelectedViewScheduleCollection.Move(oldIndex, newIndex);
                 }
             }
-                
+
         }
         private void btn_MoveDown_Click(object sender, RoutedEventArgs e)
         {
@@ -125,7 +120,6 @@ namespace ViewScheduleSheetSpreader
                 }
             }
         }
-
         private void comboBox_FirstSheetFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             List<ElementId> familySymbolsIdList = ((sender as System.Windows.Controls.ComboBox).SelectedItem as Family).GetFamilySymbolIds().ToList();
@@ -142,7 +136,6 @@ namespace ViewScheduleSheetSpreader
             comboBox_FirstSheetType.DisplayMemberPath = "Name";
             comboBox_FirstSheetType.SelectedItem = comboBox_FirstSheetType.Items.GetItemAt(0);
         }
-
         private void comboBox_FollowingSheetsFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             List<ElementId> familySymbolsIdList = ((sender as System.Windows.Controls.ComboBox).SelectedItem as Family).GetFamilySymbolIds().ToList();
@@ -159,7 +152,6 @@ namespace ViewScheduleSheetSpreader
             comboBox_FollowingSheetsType.DisplayMemberPath = "Name";
             comboBox_FollowingSheetsType.SelectedItem = comboBox_FollowingSheetsType.Items.GetItemAt(0);
         }
-
         private void comboBox_FirstSheetType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             FamilySymbol selectedFamilySymbol = (sender as System.Windows.Controls.ComboBox).SelectedItem as FamilySymbol;
@@ -168,7 +160,7 @@ namespace ViewScheduleSheetSpreader
             {
                 ElementClassFilter filter = new ElementClassFilter(typeof(FamilyInstance));
                 IList<ElementId> selectedFamilyInstanceList = selectedFamilySymbol.GetDependentElements(filter);
-                if(selectedFamilyInstanceList.Count != 0)
+                if (selectedFamilyInstanceList.Count != 0)
                 {
                     parameterSet = Doc.GetElement(selectedFamilyInstanceList.First()).Parameters;
 
@@ -190,7 +182,6 @@ namespace ViewScheduleSheetSpreader
                 }
             }
         }
-
         private void radioButton_Checked(object sender, RoutedEventArgs e)
         {
             string selectedButtonName = (this.groupBox_SheetSize.Content as System.Windows.Controls.Grid)
@@ -199,13 +190,19 @@ namespace ViewScheduleSheetSpreader
                 .Name;
             if (selectedButtonName == "radioButton_Instance")
             {
-                label_SheetFormatParameter.IsEnabled = true;
-                comboBox_SheetFormatParameter.IsEnabled = true;
+                if (label_SheetFormatParameter != null)
+                {
+                    label_SheetFormatParameter.IsEnabled = true;
+                    comboBox_SheetFormatParameter.IsEnabled = true;
+                }
             }
             else if (selectedButtonName == "radioButton_Type")
             {
-                label_SheetFormatParameter.IsEnabled = false;
-                comboBox_SheetFormatParameter.IsEnabled = false;
+                if (label_SheetFormatParameter != null)
+                {
+                    label_SheetFormatParameter.IsEnabled = false;
+                    comboBox_SheetFormatParameter.IsEnabled = false;
+                }
             }
         }
         private void radioButton_HeaderInSpecificationHeader_Checked(object sender, RoutedEventArgs e)
@@ -216,23 +213,27 @@ namespace ViewScheduleSheetSpreader
                 .Name;
             if (selectedButtonName == "radioButton_Yes")
             {
-                label_SpecificationHeaderHeight.IsEnabled = false;
-                textBox_SpecificationHeaderHeight.IsEnabled = false;
+                if (label_SpecificationHeaderHeight != null)
+                {
+                    label_SpecificationHeaderHeight.IsEnabled = false;
+                    textBox_SpecificationHeaderHeight.IsEnabled = false;
+                }
             }
             else if (selectedButtonName == "radioButton_No")
             {
-                label_SpecificationHeaderHeight.IsEnabled = true;
-                textBox_SpecificationHeaderHeight.IsEnabled = true;
+                if (label_SpecificationHeaderHeight != null)
+                {
+                    label_SpecificationHeaderHeight.IsEnabled = true;
+                    textBox_SpecificationHeaderHeight.IsEnabled = true;
+                }
             }
         }
-
         private void btn_Ok_Click(object sender, RoutedEventArgs e)
         {
             SaveDialogResultValues();
             DialogResult = true;
             Close();
         }
-
         private void btn_Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
@@ -267,13 +268,10 @@ namespace ViewScheduleSheetSpreader
             ViewScheduleSheetSpreaderSettingsItem.FollowingSheetsTypeName = FollowingSheetType.Name;
 
             SheetFormatParameter = comboBox_SheetFormatParameter.SelectedItem as Parameter;
-            if(SheetFormatParameter != null)
+            if (SheetFormatParameter != null)
             {
                 ViewScheduleSheetSpreaderSettingsItem.SheetFormatParameterName = SheetFormatParameter.Definition.Name;
             }
-
-            GroupingParameterDefinition = comboBox_GroupingParameter.SelectedItem as Definition;
-            ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName = GroupingParameterDefinition.Name;
 
             double.TryParse(textBox_XOffset.Text, out XOffset);
             ViewScheduleSheetSpreaderSettingsItem.XOffsetValue = textBox_XOffset.Text;
@@ -296,9 +294,22 @@ namespace ViewScheduleSheetSpreader
                 .Name;
             ViewScheduleSheetSpreaderSettingsItem.HeaderInSpecificationHeaderSelectedButtonName = HeaderInSpecificationHeaderVariantName;
 
+            SheetNumberSuffix = textBox_SheetNumberSuffix.Text;
+            ViewScheduleSheetSpreaderSettingsItem.SheetNumberSuffix = SheetNumberSuffix;
+
             double.TryParse(textBox_SpecificationHeaderHeight.Text, out SpecificationHeaderHeight);
             ViewScheduleSheetSpreaderSettingsItem.SpecificationHeaderHeightValue = textBox_SpecificationHeaderHeight.Text;
             ViewScheduleSheetSpreaderSettingsItem.SaveSettings();
+
+            List<string> selectedViewScheduleList = new List<string>();
+            foreach (ViewSchedule viewSchedule in listBox_SelectedViewScheduleCollection.Items)
+            {
+                selectedViewScheduleList.Add(viewSchedule.Name);
+            }
+            if(selectedViewScheduleList.Count != 0)
+            {
+                new ViewScheduleListToXML().SaveList(selectedViewScheduleList);
+            }
         }
         private void SetSavedSettingsValueToForm()
         {
@@ -307,6 +318,10 @@ namespace ViewScheduleSheetSpreader
                 if (ViewScheduleSheetSpreaderSettingsItem.SheetSizeSelectedButtonName == "radioButton_Type")
                 {
                     radioButton_Type.IsChecked = true;
+                }
+                else
+                {
+                    radioButton_Instance.IsChecked = true;
                 }
             }
 
@@ -352,19 +367,10 @@ namespace ViewScheduleSheetSpreader
             }
             else
             {
-                if(comboBox_SheetFormatParameter.Items.Count != 0)
+                if (comboBox_SheetFormatParameter.Items.Count != 0)
                 {
                     comboBox_SheetFormatParameter.SelectedItem = comboBox_SheetFormatParameter.Items.GetItemAt(0);
                 }
-            }
-
-            if (ParamDefinitionsCollection.FirstOrDefault(pd => pd.Name == ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName) != null)
-            {
-                comboBox_GroupingParameter.SelectedItem = ParamDefinitionsCollection.FirstOrDefault(pd => pd.Name == ViewScheduleSheetSpreaderSettingsItem.GroupingParameterName);
-            }
-            else
-            {
-                comboBox_GroupingParameter.SelectedItem = comboBox_GroupingParameter.Items.GetItemAt(0);
             }
 
             if (ViewScheduleSheetSpreaderSettingsItem.XOffsetValue != null)
@@ -397,6 +403,20 @@ namespace ViewScheduleSheetSpreader
                 if (ViewScheduleSheetSpreaderSettingsItem.HeaderInSpecificationHeaderSelectedButtonName == "radioButton_No")
                 {
                     radioButton_No.IsChecked = true;
+                    if (label_SpecificationHeaderHeight != null)
+                    {
+                        label_SpecificationHeaderHeight.IsEnabled = true;
+                        textBox_SpecificationHeaderHeight.IsEnabled = true;
+                    }
+                }
+                else
+                {
+                    radioButton_Yes.IsChecked = true;
+                    if (label_SpecificationHeaderHeight != null)
+                    {
+                        label_SpecificationHeaderHeight.IsEnabled = false;
+                        textBox_SpecificationHeaderHeight.IsEnabled = false;
+                    }
                 }
             }
 
@@ -407,6 +427,30 @@ namespace ViewScheduleSheetSpreader
             else
             {
                 textBox_SpecificationHeaderHeight.Text = "40";
+            }
+
+            if (ViewScheduleSheetSpreaderSettingsItem.SheetNumberSuffix != null)
+            {
+                textBox_SheetNumberSuffix.Text = ViewScheduleSheetSpreaderSettingsItem.SheetNumberSuffix;
+            }
+            else
+            {
+                textBox_SheetNumberSuffix.Text = "";
+            }
+
+            if(SelectedViewScheduleList != null)
+            {
+                foreach(string selectedViewScheduleName in SelectedViewScheduleList)
+                {
+                    if(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName) != null)
+                    {
+                        if(!SelectedViewScheduleCollection.Contains(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName)))
+                        {
+                            SelectedViewScheduleCollection.Add(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName));
+                            ViewScheduleInProjectCollection.Remove(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName));
+                        }
+                    }
+                }
             }
         }
     }

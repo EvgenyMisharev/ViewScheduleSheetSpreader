@@ -2,26 +2,28 @@
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 
 namespace ViewScheduleSheetSpreader
 {
     [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
     class ViewScheduleSheetSpreaderCommand : IExternalCommand
     {
-        ViewScheduleSheetSpreaderProgressBarWPF viewScheduleSheetSpreaderProgressBarWPF;
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             Document doc = commandData.Application.ActiveUIDocument.Document;
-            Stopwatch stopWatch = new Stopwatch();
-            stopWatch.Start();
+            int.TryParse(commandData.Application.Application.VersionNumber, out int versionNumber);
+            if (versionNumber < 2023)
+            {
+                TaskDialog.Show("Revit", "К сожалению, возможность разделения спецификаций по листам доступна только с версии Revit 2023 и выше!");
+                return Result.Cancelled;
+            }
 
             List<ViewSchedule> viewScheduleList = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Schedules)
                 .OfClass(typeof(ViewSchedule))
                 .Cast<ViewSchedule>()
+                .Where(vs => vs.IsTitleblockRevisionSchedule == false)
                 .OrderBy(vs => vs.Name, new AlphanumComparatorFastString())
                 .ToList();
 
@@ -32,16 +34,8 @@ namespace ViewScheduleSheetSpreader
                 .OrderBy(f => f.Name, new AlphanumComparatorFastString())
                 .ToList();
 
-            List<Definition> paramDefinitionsList = new List<Definition>();
-            var iterador = doc.ParameterBindings.ForwardIterator();
-            while (iterador.MoveNext())
-            {
-                Definition wdwdwd = iterador.Key;
-                paramDefinitionsList.Add(iterador.Key);
-            }
-
-            //Вызов формы
-            ViewScheduleSheetSpreaderWPF viewScheduleSheetSpreaderWPF = new ViewScheduleSheetSpreaderWPF(doc, viewScheduleList, titleBlockFamilysList, paramDefinitionsList);
+            // Вызов формы
+            ViewScheduleSheetSpreaderWPF viewScheduleSheetSpreaderWPF = new ViewScheduleSheetSpreaderWPF(doc, viewScheduleList, titleBlockFamilysList);
             viewScheduleSheetSpreaderWPF.ShowDialog();
             if (viewScheduleSheetSpreaderWPF.DialogResult != true)
             {
@@ -52,7 +46,6 @@ namespace ViewScheduleSheetSpreader
             FamilySymbol firstSheetType = viewScheduleSheetSpreaderWPF.FirstSheetType;
             FamilySymbol followingSheetType = viewScheduleSheetSpreaderWPF.FollowingSheetType;
             Parameter sheetFormatParameter = viewScheduleSheetSpreaderWPF.SheetFormatParameter;
-            Definition groupingParameterDefinition = viewScheduleSheetSpreaderWPF.GroupingParameterDefinition;
             double xOffset = viewScheduleSheetSpreaderWPF.XOffset / 304.8;
             double yOffset = viewScheduleSheetSpreaderWPF.YOffset / 304.8;
             string sheetSizeVariantName = viewScheduleSheetSpreaderWPF.SheetSizeVariantName;
@@ -61,593 +54,426 @@ namespace ViewScheduleSheetSpreader
             double specificationHeaderHeight = viewScheduleSheetSpreaderWPF.SpecificationHeaderHeight / 304.8;
             double placementHeightOnFirstSheet = 230 / 304.8;
             double placementHeightOnFollowingSheet = 270 / 304.8;
+            string sheetNumberSuffix = viewScheduleSheetSpreaderWPF.SheetNumberSuffix;
+
+            //Проверка разделения
+            foreach(ViewSchedule viewSchedule in selectedViewScheduleList)
+            {
+                if(viewSchedule.IsSplit())
+                {
+                    TaskDialog.Show("Revit", $"Спецификация \"{viewSchedule.Name}\" уже разделена и не может быть размещена на листы!");
+                    return Result.Cancelled;
+                }
+            }
 
             if (headerInSpecificationHeaderVariantName == "radioButton_No")
             {
                 yOffset = yOffset - specificationHeaderHeight;
                 placementHeightOnFirstSheet = placementHeightOnFirstSheet - specificationHeaderHeight;
                 placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - specificationHeaderHeight;
-            }
 
-            List<ElementId> readonlyGruppingParameterElementIdList = new List<ElementId>();
-            foreach (ViewSchedule viewSchedule in selectedViewScheduleList)
-            {
-                List<ElementId> allElemsInViewSchedule = new FilteredElementCollector(doc, viewSchedule.Id).ToElementIds().ToList();
-                foreach(ElementId elementId in allElemsInViewSchedule)
+                int currentSheetNumber = sheetNumber;
+                ViewSheet currentSheet = null;
+                XYZ viewLocation = new XYZ(xOffset, yOffset, 0);
+                using (Transaction t = new Transaction(doc))
                 {
-                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) == null || doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).IsReadOnly)
-                    {
-                        readonlyGruppingParameterElementIdList.Add(elementId);
-                    }
-                }
-            }
-            if(readonlyGruppingParameterElementIdList.Count > 0)
-            {
-                string errorMassage = $"В некоторых элементах, попадающих в спецификации, параметр \"{groupingParameterDefinition.Name}\" доступен только для чтения. " +
-                    $"Причины могут быть различными. К примеру, параметр группирования может быть параметром типа или параметром вложенного семейства. " +
-                    $"Прежде чем продолжыть, необходимо сделать параметр \"{groupingParameterDefinition.Name}\" доступным для редактирования.";
-                ReadonlyParameterWPF readonlyParameterWPF = new ReadonlyParameterWPF(errorMassage, readonlyGruppingParameterElementIdList);
-                readonlyParameterWPF.ShowDialog();
-                //return Result.Cancelled; БОЛЬШОЙ ВОПРОС ОСТАВИТЬ ТАК ИЛИ НЕТ!!!
-            }
-
-            int startSheetNumber = sheetNumber;
-            ViewSheet currentViewSheet = null;
-            XYZ viewLocation = new XYZ(xOffset, yOffset, 0);
-
-            Thread newWindowThread = new Thread(new ThreadStart(ThreadStartingPoint));
-            newWindowThread.SetApartmentState(ApartmentState.STA);
-            newWindowThread.IsBackground = true;
-            newWindowThread.Start();
-            int stepSpecificationProcessing = 0;
-            int stepRowProcessing = 0;
-            int stepPlacementSpecificationsOnSheets = 0;
-            Thread.Sleep(100);
-            viewScheduleSheetSpreaderProgressBarWPF.pb_SpecificationProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_SpecificationProcessingProgressBar.Minimum = 0);
-            viewScheduleSheetSpreaderProgressBarWPF.pb_SpecificationProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_SpecificationProcessingProgressBar.Maximum = selectedViewScheduleList.Count);
-            viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Minimum = 0);
-            viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Minimum = 0);
-
-            using (TransactionGroup tg = new TransactionGroup(doc))
-            {
-                tg.Start("Спецификации на листы");
-                foreach (ViewSchedule viewSchedule in selectedViewScheduleList)
-                {
-                    TableData mainTableData = viewSchedule.GetTableData();
-                    TableSectionData mainSectionData = mainTableData.GetSectionData(SectionType.Body);
-                    int nRows = mainSectionData.NumberOfRows;
-                    viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Maximum = nRows);
-                    viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Value = stepRowProcessing);
-                    viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Value = stepPlacementSpecificationsOnSheets);
+                    t.Start("Спецификации на листы");
+                    ElementCategoryFilter elementCategoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_TitleBlocks);
                     
-                    List<ElementId> allElemsInViewSchedule = new FilteredElementCollector(doc, viewSchedule.Id).ToElementIds().ToList();
-                    List<List<ElementId>> elementIdListByRow = new List<List<ElementId>>();
-
-                    using (Transaction t = new Transaction(doc))
+                    foreach (ViewSchedule viewSchedule in selectedViewScheduleList)
                     {
+                        ScheduleHeightsOnSheet scheduleHeightsOnSheet = viewSchedule.GetScheduleHeightsOnSheet();
+                        double viewScheduleTitleHeight = scheduleHeightsOnSheet.TitleHeight;
+                        double viewScheduleColumnHeaderHeight = scheduleHeightsOnSheet.ColumnHeaderHeight;
+                        double viewScheduleBodyRowHeight = scheduleHeightsOnSheet.GetBodyRowHeights().Sum();
+                        if (viewScheduleBodyRowHeight == 0) continue;
 
-                        for (int i = 0; i < nRows; i++)
+                        if (currentSheet == null)
                         {
-                            stepRowProcessing++;
-                            viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_RowProcessingProgressBar.Value = stepRowProcessing);
-                            if (mainSectionData.CanRemoveRow(i))
+                            currentSheet = ViewSheet.Create(doc, firstSheetType.Id);
+                            FamilyInstance firstViewSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                            firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                            firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                            if (sheetSizeVariantName == "radioButton_Instance")
                             {
-                                t.Start("Выбор элементов в строке");
-                                mainSectionData.RemoveRow(i);
-                                List<ElementId> elemsInViewScheduleWithoutRow = new FilteredElementCollector(doc, viewSchedule.Id).ToElementIds().ToList();
-                                List<ElementId> idsInRow = allElemsInViewSchedule.Except(elemsInViewScheduleWithoutRow).ToList();
-                                elementIdListByRow.Add(idsInRow);
-                                t.RollBack();
-                            }
-                            else if (!mainSectionData.CanRemoveRow(i) && i == nRows - 1)
-                            {
-                                List<ElementId> elementIds = new List<ElementId>();
-                                foreach (List<ElementId> idList in elementIdListByRow)
-                                {
-                                    foreach (ElementId id in idList)
-                                    {
-                                        elementIds.Add(id);
-                                    }
-                                }
-                                List<ElementId> idsInRow = allElemsInViewSchedule.Except(elementIds).ToList();
-                                elementIdListByRow.Add(idsInRow);
-                            }
-                        }
-                    }
-
-                    viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Maximum = elementIdListByRow.Count);
-                    foreach (List<ElementId> idList in elementIdListByRow)
-                    {
-                        stepPlacementSpecificationsOnSheets++;
-                        viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_PlacementSpecificationsOnSheetsProgressBar.Value = stepPlacementSpecificationsOnSheets);
-                        if (currentViewSheet == null && startSheetNumber == sheetNumber)
-                        {
-                            using (Transaction t = new Transaction(doc))
-                            {
-                                t.Start("Создание 1-го листа");
-                                currentViewSheet = ViewSheet.Create(doc, firstSheetType.Id);
-                                ElementCategoryFilter elementCategoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_TitleBlocks);
-                                FamilyInstance firstViewSheetFrameFamilyInstance = doc.GetElement(currentViewSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
-                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set(sheetNumber.ToString());
-                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
-                                if (sheetSizeVariantName == "radioButton_Instance")
-                                {
-                                    firstViewSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
-                                }
-                                t.Commit();
-                            }
-                        }
-                        using (Transaction t = new Transaction(doc))
-                        {
-                            t.Start("Заполнение номера листа в группировку");
-                            foreach (ElementId elementId in idList)
-                            {
-#if R2019 || R2020 || R2021 || R2022
-                                if (groupingParameterDefinition.ParameterType == ParameterType.Text)
-                                {
-                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                    {
-                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                        {
-                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
-                                        }
-                                    }
-                                    else
-                                    {
-                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                        return Result.Cancelled;
-                                    }
-                                }
-                                else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
-                                {
-                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                    {
-                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                        {
-                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                        return Result.Cancelled;
-                                    }
-                                }
-                                else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
-                                {
-                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                    {
-                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                        {
-                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                        return Result.Cancelled;
-                                    }
-                                }
-#else
-                                if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
-                                {
-                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                    {
-                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                        {
-                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
-                                        }
-                                    }
-                                    else
-                                    {
-                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                        return Result.Cancelled;
-                                    }
-                                }
-                                else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
-                                {
-                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                    {
-                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                        {
-                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                        return Result.Cancelled;
-                                    }
-                                }
-                                else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
-                                {
-                                    if(doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                    {
-                                        // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                        if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                        {
-                                            doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                        message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                            $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                            $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                        return Result.Cancelled;
-                                    }
-                                }
-#endif
-                            }
-                            t.Commit();
-
-                            t.Start("Проверка высоты спецификации");
-                            ViewSchedule tmpViewSchedule = doc.GetElement(viewSchedule.Duplicate(ViewDuplicateOption.Duplicate)) as ViewSchedule;
-                            tmpViewSchedule.Name = $"{viewSchedule.Name}_Лист{sheetNumber}";
-                            ScheduleDefinition definition = tmpViewSchedule.Definition;
-                            ScheduleField field = FindField(doc, groupingParameterDefinition, definition);
-                            if (field == null)
-                            {
-                                field = definition.AddField(ScheduleFieldType.Instance, (doc.GetElement(field.ParameterId) as ParameterElement).Id);
-                                field.IsHidden = true;
+                                firstViewSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
                             }
 
-                            //Создание фильтра по выбранному параметру
-                            ScheduleFilter filterByGroupingParameter = null;
-#if R2019 || R2020 || R2021 || R2022
-                            if (groupingParameterDefinition.ParameterType == ParameterType.Text)
+                            if (viewScheduleBodyRowHeight - placementHeightOnFirstSheet < 0)
                             {
-                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber.ToString());
-                            }
-                            else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
-                            {
-                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
-                            }
-                            else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
-                            {
-                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
-                            }
-#else
-                            if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
-                            {
-                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber.ToString());
-                            }
-                            else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
-                            {
-                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
-                            }
-                            else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
-                            {
-                                filterByGroupingParameter = new ScheduleFilter(field.FieldId, ScheduleFilterType.Equal, sheetNumber);
-                            }
-#endif
-
-
-                            //Проверка наличия фильтра в спецификации
-                            IList<ScheduleFilter> filtersInViewSchedule = definition.GetFilters();
-                            bool filterInViewScheduleCheck = false;
-                            foreach (ScheduleFilter filterInViewSchedule in filtersInViewSchedule)
-                            {
-#if R2019 || R2020 || R2021 || R2022
-                                if (filterInViewSchedule.FieldId.Equals(filterByGroupingParameter.FieldId) 
-                                    && filterInViewSchedule.FilterType == filterByGroupingParameter.FilterType)
-                                {
-                                    filterInViewScheduleCheck = true;
-                                    int filterIndex = filtersInViewSchedule.IndexOf(filterInViewSchedule);
-                                    if (groupingParameterDefinition.ParameterType == ParameterType.Text)
-                                    {
-                                        filterInViewSchedule.SetValue(sheetNumber.ToString());
-                                    }
-                                    else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
-                                    {
-                                        filterInViewSchedule.SetValue(sheetNumber);
-                                    }
-                                    else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
-                                    {
-                                        filterInViewSchedule.SetValue(sheetNumber);
-                                    }
-                                    definition.SetFilter(filterIndex, filterInViewSchedule);
-                                    break;
-                                }
-#else
-                                if (filterInViewSchedule.FieldId.Equals(filterByGroupingParameter.FieldId)
-                                    && filterInViewSchedule.FilterType == filterByGroupingParameter.FilterType)
-                                {
-                                    filterInViewScheduleCheck = true;
-                                    int filterIndex = filtersInViewSchedule.IndexOf(filterInViewSchedule);
-                                    if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
-                                    {
-                                        filterInViewSchedule.SetValue(sheetNumber.ToString());
-                                    }
-                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
-                                    {
-                                        filterInViewSchedule.SetValue(sheetNumber);
-                                    }
-                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
-                                    {
-                                        filterInViewSchedule.SetValue(sheetNumber);
-                                    }
-                                    definition.SetFilter(filterIndex, filterInViewSchedule);
-                                    break;
-                                }
-#endif
-                            }
-                            //Добавление фильтра, если он отсутствует
-                            if (!filterInViewScheduleCheck)
-                            {
-                                definition.AddFilter(filterByGroupingParameter);
-                            }
-
-                            //Управление заголовком спецификации
-                            if (headerInSpecificationHeaderVariantName == "radioButton_Yes")
-                            {
-                                if (Math.Round(yOffset - viewLocation.Y, 6).Equals(0))
-                                {
-                                    definition.ShowTitle = true;
-                                }
-                                else
-                                {
-                                    definition.ShowTitle = false;
-                                }
+                                ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation);
+                                placementHeightOnFirstSheet = placementHeightOnFirstSheet - viewScheduleBodyRowHeight;
+                                viewLocation = new XYZ(viewLocation.X, viewLocation.Y - viewScheduleBodyRowHeight, 0);
                             }
                             else
                             {
-                                definition.ShowTitle = false;
-                            }
-
-                            //Размещение спецификации на лист и проверка высоты
-                            ScheduleSheetInstance tmpScheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentViewSheet.Id, tmpViewSchedule.Id, viewLocation);
-                            BoundingBoxXYZ bb = tmpScheduleSheetInstance.get_BoundingBox(currentViewSheet);
-                            double scheduleHeight = bb.Max.Y - bb.Min.Y - 0.006955380577;
-                            double summScheduleHeight = scheduleHeight + Math.Round(yOffset - viewLocation.Y, 6);
-
-                            if (startSheetNumber == sheetNumber && summScheduleHeight < placementHeightOnFirstSheet)
-                            {
-                                if (stepPlacementSpecificationsOnSheets != elementIdListByRow.Count) t.RollBack();
-                                else
+                                int segmentsCount = (int)Math.Ceiling(((viewScheduleBodyRowHeight - placementHeightOnFirstSheet) / placementHeightOnFollowingSheet));
+                                List<double> viewScheduleHeightsList = new List<double>();
+                                viewScheduleHeightsList.Add(placementHeightOnFirstSheet);
+                                for (int i = 1; i < segmentsCount; i++)
                                 {
-                                    t.Commit();
-                                    viewLocation = viewLocation - scheduleHeight * XYZ.BasisY;
-                                } 
-
-                            }
-                            else if (startSheetNumber != sheetNumber && summScheduleHeight < placementHeightOnFollowingSheet)
-                            {
-                                if (stepPlacementSpecificationsOnSheets != elementIdListByRow.Count) t.RollBack();
-                                else
-                                {
-                                    t.Commit();
-                                    viewLocation = viewLocation - scheduleHeight * XYZ.BasisY;
+                                    viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
                                 }
-                            }
-                            else
-                            {
-                                t.Commit();
-                                sheetNumber++;
+                                viewSchedule.Split(viewScheduleHeightsList);
+                                int realSegmentsCount = viewSchedule.GetSegmentCount();
+                                for(int i = 0; i< realSegmentsCount; i++)
+                                {
+                                    double segH = viewSchedule.GetSegmentHeight(i);
+                                    if (segH == double.MaxValue)
+                                    {
+                                        ScheduleSheetInstance scheduleSheetInstanceTMP = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                        BoundingBoxXYZ bb = scheduleSheetInstanceTMP.get_BoundingBox(currentSheet);
+                                        double segmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                        doc.Delete(scheduleSheetInstanceTMP.Id);
+                                        if (segmentHeight <= 0)
+                                        {
+                                            viewSchedule.DeleteSegment(i);
+                                            realSegmentsCount--;
+                                        }
+                                    }
+                                }
+
+                                ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, 0);
+
+                                double lastSegmentSegmentHeight = 0;
                                 viewLocation = new XYZ(xOffset, yOffset, 0);
-
-                                t.Start("Заполнение номера листа в группировку");
-                                foreach (ElementId elementId in idList)
+                                currentSheetNumber++;
+                                for (int i = 1; i < realSegmentsCount; i++)
                                 {
-#if R2019 || R2020 || R2021 || R2022
-                                    if (groupingParameterDefinition.ParameterType == ParameterType.Text)
+                                    currentSheet = ViewSheet.Create(doc, followingSheetType.Id);
+                                    FamilyInstance currentSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                                    currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                                    currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                                    if (sheetSizeVariantName == "radioButton_Instance")
                                     {
-                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                        {
-                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                            {
-                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
-                                            }
-                                        }
-                                        else
-                                        {
-                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                            return Result.Cancelled;
-                                        }
+                                        currentSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
                                     }
-                                    else if (groupingParameterDefinition.ParameterType == ParameterType.Integer)
+                                    ScheduleSheetInstance scheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                    currentSheetNumber++;
+                                    if(i == realSegmentsCount - 1)
                                     {
-                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                        {
-                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                            {
-                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                            return Result.Cancelled;
-                                        }
+                                        BoundingBoxXYZ bb = scheduleSheetInstance.get_BoundingBox(currentSheet);
+                                        lastSegmentSegmentHeight = new XYZ (bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
                                     }
-                                    else if (groupingParameterDefinition.ParameterType == ParameterType.Number)
-                                    {
-                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                        {
-                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                            {
-                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                            return Result.Cancelled;
-                                        }
-                                    }
-#else
-                                    if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.String.Text))
-                                    {
-                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                        {
-                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                            {
-                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber.ToString());
-                                            }
-                                        }
-                                        else
-                                        {
-                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                            return Result.Cancelled;
-                                        }
-                                    }
-                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Int.Integer))
-                                    {
-                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                        {
-                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                            {
-                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                            return Result.Cancelled;
-                                        }
-                                    }
-                                    else if (groupingParameterDefinition.GetDataType().Equals(SpecTypeId.Number))
-                                    {
-                                        if (doc.GetElement(elementId).get_Parameter(groupingParameterDefinition) != null)
-                                        {
-                                            // БОЛЬШОЙ ВОПРОС ОСТАВИТЬ РИДОНЛИ ЭЛЕМЕНТЫ ИЛИ НЕТ!!!
-                                            if (!readonlyGruppingParameterElementIdList.Contains(elementId))
-                                            {
-                                                doc.GetElement(elementId).get_Parameter(groupingParameterDefinition).Set(sheetNumber);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                                            message = $"Не удалось заполнить значение параметра {groupingParameterDefinition.Name} " +
-                                                $"в элементе с ID = {elementId.IntegerValue}. Убедитесь, что параметр {groupingParameterDefinition.Name} " +
-                                                $"редактируется через интерфейс и добавлен для соответствующей категории элементов.";
-
-                                            return Result.Cancelled;
-                                        }
-                                    }
-#endif
                                 }
-                                t.Commit();
-                                t.Start("Создание последующего листа");
-                                currentViewSheet = ViewSheet.Create(doc, followingSheetType.Id);
-                                ElementCategoryFilter elementCategoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_TitleBlocks);
-                                FamilyInstance firstViewSheetFrameFamilyInstance = doc.GetElement(currentViewSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
-                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set(sheetNumber.ToString());
-                                firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
-                                if (sheetSizeVariantName == "radioButton_Instance")
+                                placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - lastSegmentSegmentHeight;
+                                viewLocation = new XYZ(viewLocation.X, viewLocation.Y - lastSegmentSegmentHeight, 0);
+                            }
+                        }
+                        else
+                        {
+                            if(currentSheetNumber == sheetNumber)
+                            {
+                                if (viewScheduleBodyRowHeight - placementHeightOnFirstSheet < 0)
                                 {
-                                    firstViewSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation);
+                                    placementHeightOnFirstSheet = placementHeightOnFirstSheet - viewScheduleBodyRowHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - viewScheduleBodyRowHeight, 0);
                                 }
-                                t.Commit();
+                                else
+                                {
+                                    int segmentsCount = (int)Math.Ceiling(((viewScheduleBodyRowHeight - placementHeightOnFirstSheet) / placementHeightOnFollowingSheet));
+                                    List<double> viewScheduleHeightsList = new List<double>();
+                                    viewScheduleHeightsList.Add(placementHeightOnFirstSheet);
+                                    for (int i = segmentsCount; i > 0; i--)
+                                    {
+                                        viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
+                                    }
+                                    viewSchedule.Split(viewScheduleHeightsList);
+                                    int realSegmentsCount = viewSchedule.GetSegmentCount();
+                                    for (int i = 0; i < realSegmentsCount; i++)
+                                    {
+                                        double segH = viewSchedule.GetSegmentHeight(i);
+                                        if (segH == double.MaxValue)
+                                        {
+                                            ScheduleSheetInstance scheduleSheetInstanceTMP = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                            BoundingBoxXYZ bb = scheduleSheetInstanceTMP.get_BoundingBox(currentSheet);
+                                            double segmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                            doc.Delete(scheduleSheetInstanceTMP.Id);
+                                            if (segmentHeight <= 0)
+                                            {
+                                                viewSchedule.DeleteSegment(i);
+                                                realSegmentsCount--;
+                                            }
+                                        }
+                                    }
+
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, 0);
+                                    viewLocation = new XYZ(xOffset, yOffset, 0);
+
+                                    currentSheetNumber++;
+                                    double lastSegmentSegmentHeight = 0;
+                                    for (int i = 1; i < realSegmentsCount; i++)
+                                    {
+                                        currentSheet = ViewSheet.Create(doc, followingSheetType.Id);
+                                        FamilyInstance currentSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                                        if (sheetSizeVariantName == "radioButton_Instance")
+                                        {
+                                            currentSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
+                                        }
+                                        ScheduleSheetInstance scheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                        currentSheetNumber++;
+                                        if (i == realSegmentsCount - 1)
+                                        {
+                                            BoundingBoxXYZ bb = scheduleSheetInstance.get_BoundingBox(currentSheet);
+                                            lastSegmentSegmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                        }
+                                    }
+                                    placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - lastSegmentSegmentHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - lastSegmentSegmentHeight, 0);
+                                }
+                            }
+                            else
+                            {
+                                if (viewScheduleBodyRowHeight - placementHeightOnFollowingSheet < 0)
+                                {
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation);
+                                    placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - viewScheduleBodyRowHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - viewScheduleBodyRowHeight, 0);
+                                }
+                                else
+                                {
+                                    int segmentsCount = (int)Math.Ceiling(((viewScheduleBodyRowHeight - placementHeightOnFollowingSheet) / (270 / 304.8 - specificationHeaderHeight)));
+                                    List<double> viewScheduleHeightsList = new List<double>();
+                                    viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
+
+                                    placementHeightOnFollowingSheet = 270 / 304.8 - specificationHeaderHeight;
+                                    for (int i = segmentsCount; i > 0; i--)
+                                    {
+                                        viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
+                                    }
+                                    viewSchedule.Split(viewScheduleHeightsList);
+                                    int realSegmentsCount = viewSchedule.GetSegmentCount();
+                                    for (int i = 0; i < realSegmentsCount; i++)
+                                    {
+                                        double segH = viewSchedule.GetSegmentHeight(i);
+                                        if (segH == double.MaxValue)
+                                        {
+                                            ScheduleSheetInstance scheduleSheetInstanceTMP = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                            BoundingBoxXYZ bb = scheduleSheetInstanceTMP.get_BoundingBox(currentSheet);
+                                            double segmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                            doc.Delete(scheduleSheetInstanceTMP.Id);
+                                            if(segmentHeight <= 0)
+                                            {
+                                                viewSchedule.DeleteSegment(i);
+                                                realSegmentsCount--;
+                                            }
+                                        }
+                                    }
+
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, 0);
+                                    viewLocation = new XYZ(xOffset, yOffset, 0);
+
+                                    double lastSegmentSegmentHeight = 0;
+                                    for (int i = 1; i < realSegmentsCount; i++)
+                                    {
+                                        currentSheet = ViewSheet.Create(doc, followingSheetType.Id);
+                                        FamilyInstance currentSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                                        if (sheetSizeVariantName == "radioButton_Instance")
+                                        {
+                                            currentSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
+                                        }
+                                        ScheduleSheetInstance scheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                        currentSheetNumber++;
+                                        if (i == realSegmentsCount - 1)
+                                        {
+                                            BoundingBoxXYZ bb = scheduleSheetInstance.get_BoundingBox(currentSheet);
+                                            lastSegmentSegmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                        }
+                                    }
+                                    placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - lastSegmentSegmentHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - lastSegmentSegmentHeight, 0);
+                                }
                             }
                         }
                     }
-                    stepSpecificationProcessing++;
-                    viewScheduleSheetSpreaderProgressBarWPF.pb_SpecificationProcessingProgressBar.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.pb_SpecificationProcessingProgressBar.Value = stepSpecificationProcessing);
-                    stepRowProcessing = 0;
-                    stepPlacementSpecificationsOnSheets = 0;
+                    t.Commit();
                 }
-                viewScheduleSheetSpreaderProgressBarWPF.Dispatcher.Invoke(() => viewScheduleSheetSpreaderProgressBarWPF.Close());
-                tg.Assimilate();
             }
-            stopWatch.Stop();
-            TimeSpan ts = stopWatch.Elapsed;
-            string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
-                ts.Hours, ts.Minutes, ts.Seconds,
-                ts.Milliseconds / 10);
-            TaskDialog.Show("Revit",$"Время выполнения: {elapsedTime}");
-            return Result.Succeeded;
-        }
-
-        private static ScheduleField FindField(Document doc, Definition groupingParameterDefinition, ScheduleDefinition definition)
-        {
-            ScheduleField foundField = null;
-            int fieldCount = definition.GetFieldCount();
-            for(int i =0; i< fieldCount; i++)
+            else
             {
-                foundField = definition.GetField(i);
-                ParameterElement param = doc.GetElement(foundField.ParameterId) as ParameterElement;
-                if(param != null)
+                int currentSheetNumber = sheetNumber;
+                ViewSheet currentSheet = null;
+                XYZ viewLocation = new XYZ(xOffset, yOffset, 0);
+                using (Transaction t = new Transaction(doc))
                 {
-                    Definition def = param.GetDefinition();
-#if R2019 || R2020 || R2021 || R2022
-                    if (def.Name == groupingParameterDefinition.Name
-                        && def.ParameterGroup == groupingParameterDefinition.ParameterGroup
-                        && def.ParameterType == groupingParameterDefinition.ParameterType)
+                    t.Start("Спецификации на листы");
+                    ElementCategoryFilter elementCategoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_TitleBlocks);
+
+                    foreach (ViewSchedule viewSchedule in selectedViewScheduleList)
                     {
-                        return foundField;
+                        ScheduleHeightsOnSheet scheduleHeightsOnSheet = viewSchedule.GetScheduleHeightsOnSheet();
+                        double viewScheduleTitleHeight = scheduleHeightsOnSheet.TitleHeight;
+                        double viewScheduleColumnHeaderHeight = scheduleHeightsOnSheet.ColumnHeaderHeight;
+                        double viewScheduleBodyRowHeight = scheduleHeightsOnSheet.GetBodyRowHeights().Sum();
+                        if (viewScheduleBodyRowHeight == 0) continue;
+
+                        placementHeightOnFirstSheet = placementHeightOnFirstSheet - viewScheduleTitleHeight - viewScheduleColumnHeaderHeight;
+                        placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - viewScheduleTitleHeight - viewScheduleColumnHeaderHeight;
+
+                        if (currentSheet == null)
+                        {
+                            currentSheet = ViewSheet.Create(doc, firstSheetType.Id);
+                            FamilyInstance firstViewSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                            firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                            firstViewSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                            if (sheetSizeVariantName == "radioButton_Instance")
+                            {
+                                firstViewSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
+                            }
+
+                            if (viewScheduleBodyRowHeight - placementHeightOnFirstSheet < 0)
+                            {
+                                ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation);
+                                placementHeightOnFirstSheet = placementHeightOnFirstSheet - viewScheduleBodyRowHeight;
+                                viewLocation = new XYZ(viewLocation.X, viewLocation.Y - viewScheduleBodyRowHeight, 0);
+                            }
+                            else
+                            {
+                                int segmentsCount = (int)Math.Ceiling(((viewScheduleBodyRowHeight - placementHeightOnFirstSheet) / placementHeightOnFollowingSheet));
+                                List<double> viewScheduleHeightsList = new List<double>();
+                                viewScheduleHeightsList.Add(placementHeightOnFirstSheet);
+                                for (int i = 1; i < segmentsCount; i++)
+                                {
+                                    viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
+                                }
+                                viewSchedule.Split(viewScheduleHeightsList);
+                                int realSegmentsCount = viewSchedule.GetSegmentCount();
+
+                                ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, 0);
+
+                                double lastSegmentSegmentHeight = 0;
+                                viewLocation = new XYZ(xOffset, yOffset, 0);
+                                currentSheetNumber++;
+                                for (int i = 1; i < realSegmentsCount; i++)
+                                {
+                                    currentSheet = ViewSheet.Create(doc, followingSheetType.Id);
+                                    FamilyInstance currentSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                                    currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                                    currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                                    if (sheetSizeVariantName == "radioButton_Instance")
+                                    {
+                                        currentSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
+                                    }
+                                    ScheduleSheetInstance scheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                    currentSheetNumber++;
+                                    if (i == realSegmentsCount - 1)
+                                    {
+                                        BoundingBoxXYZ bb = scheduleSheetInstance.get_BoundingBox(currentSheet);
+                                        lastSegmentSegmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                    }
+                                }
+                                placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - lastSegmentSegmentHeight;
+                                viewLocation = new XYZ(viewLocation.X, viewLocation.Y - lastSegmentSegmentHeight, 0);
+                            }
+                        }
+                        else
+                        {
+                            if (currentSheetNumber == sheetNumber)
+                            {
+                                if (viewScheduleBodyRowHeight - placementHeightOnFirstSheet < 0)
+                                {
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation);
+                                    placementHeightOnFirstSheet = placementHeightOnFirstSheet - viewScheduleBodyRowHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - viewScheduleBodyRowHeight, 0);
+                                }
+                                else
+                                {
+                                    int segmentsCount = (int)Math.Ceiling(((viewScheduleBodyRowHeight - placementHeightOnFirstSheet) / placementHeightOnFollowingSheet));
+                                    List<double> viewScheduleHeightsList = new List<double>();
+                                    viewScheduleHeightsList.Add(placementHeightOnFirstSheet);
+                                    for (int i = segmentsCount; i > 0; i--)
+                                    {
+                                        viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
+                                    }
+                                    viewSchedule.Split(viewScheduleHeightsList);
+                                    int realSegmentsCount = viewSchedule.GetSegmentCount();
+
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, 0);
+                                    viewLocation = new XYZ(xOffset, yOffset, 0);
+
+                                    currentSheetNumber++;
+                                    double lastSegmentSegmentHeight = 0;
+                                    for (int i = 1; i < realSegmentsCount; i++)
+                                    {
+                                        currentSheet = ViewSheet.Create(doc, followingSheetType.Id);
+                                        FamilyInstance currentSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                                        if (sheetSizeVariantName == "radioButton_Instance")
+                                        {
+                                            currentSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
+                                        }
+                                        ScheduleSheetInstance scheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                        currentSheetNumber++;
+                                        if (i == realSegmentsCount - 1)
+                                        {
+                                            BoundingBoxXYZ bb = scheduleSheetInstance.get_BoundingBox(currentSheet);
+                                            lastSegmentSegmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                        }
+                                    }
+                                    placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - lastSegmentSegmentHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - lastSegmentSegmentHeight, 0);
+                                }
+                            }
+                            else
+                            {
+                                if (viewScheduleBodyRowHeight - placementHeightOnFollowingSheet < 0)
+                                {
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation);
+                                    placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - viewScheduleBodyRowHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - viewScheduleBodyRowHeight, 0);
+                                }
+                                else
+                                {
+                                    int segmentsCount = (int)Math.Ceiling(((viewScheduleBodyRowHeight - placementHeightOnFollowingSheet) / (270 / 304.8 - viewScheduleTitleHeight - viewScheduleColumnHeaderHeight)));
+                                    List<double> viewScheduleHeightsList = new List<double>();
+                                    viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
+
+                                    placementHeightOnFollowingSheet = 270 / 304.8 - viewScheduleTitleHeight - viewScheduleColumnHeaderHeight;
+                                    for (int i = segmentsCount; i > 0; i--)
+                                    {
+                                        viewScheduleHeightsList.Add(placementHeightOnFollowingSheet);
+                                    }
+                                    viewSchedule.Split(viewScheduleHeightsList);
+                                    int realSegmentsCount = viewSchedule.GetSegmentCount();
+
+                                    ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, 0);
+                                    viewLocation = new XYZ(xOffset, yOffset, 0);
+
+                                    double lastSegmentSegmentHeight = 0;
+                                    for (int i = 1; i < realSegmentsCount; i++)
+                                    {
+                                        currentSheet = ViewSheet.Create(doc, followingSheetType.Id);
+                                        FamilyInstance currentSheetFrameFamilyInstance = doc.GetElement(currentSheet.GetDependentElements(elementCategoryFilter).First()) as FamilyInstance;
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NUMBER).Set($"{currentSheetNumber}{sheetNumberSuffix}");
+                                        currentSheetFrameFamilyInstance.get_Parameter(BuiltInParameter.SHEET_NAME).Set("Спецификация оборудования, изделий и материалов");
+                                        if (sheetSizeVariantName == "radioButton_Instance")
+                                        {
+                                            currentSheetFrameFamilyInstance.LookupParameter(sheetFormatParameter.Definition.Name).Set(3);
+                                        }
+                                        ScheduleSheetInstance scheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
+                                        currentSheetNumber++;
+                                        if (i == realSegmentsCount - 1)
+                                        {
+                                            BoundingBoxXYZ bb = scheduleSheetInstance.get_BoundingBox(currentSheet);
+                                            lastSegmentSegmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                        }
+                                    }
+                                    placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - lastSegmentSegmentHeight;
+                                    viewLocation = new XYZ(viewLocation.X, viewLocation.Y - lastSegmentSegmentHeight, 0);
+                                }
+                            }
+                        }
                     }
-#else
-                    if (def.Name == groupingParameterDefinition.Name
-                        && def.ParameterGroup == groupingParameterDefinition.ParameterGroup
-                        && def.GetDataType() == groupingParameterDefinition.GetDataType())
-                    {
-                        return foundField;
-                    }
-#endif
+                    t.Commit();
                 }
             }
-            return null;
-        }
-
-        private void ThreadStartingPoint()
-        {
-            viewScheduleSheetSpreaderProgressBarWPF = new ViewScheduleSheetSpreaderProgressBarWPF();
-            viewScheduleSheetSpreaderProgressBarWPF.Show();
-            System.Windows.Threading.Dispatcher.Run();
+            return Result.Succeeded;
         }
     }
 }

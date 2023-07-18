@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
 using System.Xml.Serialization;
 
 namespace ViewScheduleSheetSpreader
@@ -16,12 +11,12 @@ namespace ViewScheduleSheetSpreader
         public string FollowingSheetsFamilyName { get; set; }
         public string FollowingSheetsTypeName { get; set; }
         public string SheetFormatParameterName { get; set; }
-        public string GroupingParameterName { get; set; }
         public string XOffsetValue { get; set; }
         public string YOffsetValue { get; set; }
         public string FirstSheetNumberValue { get; set; }
         public string HeaderInSpecificationHeaderSelectedButtonName { get; set; }
         public string SpecificationHeaderHeightValue { get; set; }
+        public string SheetNumberSuffix { get; set; }
 
         public ViewScheduleSheetSpreaderSettings GetSettings()
         {
