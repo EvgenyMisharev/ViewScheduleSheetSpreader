@@ -19,13 +19,14 @@ namespace ViewScheduleSheetSpreader
                 return Result.Cancelled;
             }
 
+#if R2023 || R2024 || R2025
             List<ViewSchedule> viewScheduleList = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Schedules)
-                .OfClass(typeof(ViewSchedule))
-                .Cast<ViewSchedule>()
-                .Where(vs => vs.IsTitleblockRevisionSchedule == false)
-                .OrderBy(vs => vs.Name, new AlphanumComparatorFastString())
-                .ToList();
+                            .OfCategory(BuiltInCategory.OST_Schedules)
+                            .OfClass(typeof(ViewSchedule))
+                            .Cast<ViewSchedule>()
+                            .Where(vs => vs.IsTitleblockRevisionSchedule == false)
+                            .OrderBy(vs => vs.Name, new AlphanumComparatorFastString())
+                            .ToList();
 
             List<Family> titleBlockFamilysList = new FilteredElementCollector(doc)
                 .OfClass(typeof(Family))
@@ -57,9 +58,9 @@ namespace ViewScheduleSheetSpreader
             string sheetNumberSuffix = viewScheduleSheetSpreaderWPF.SheetNumberSuffix;
 
             //Проверка разделения
-            foreach(ViewSchedule viewSchedule in selectedViewScheduleList)
+            foreach (ViewSchedule viewSchedule in selectedViewScheduleList)
             {
-                if(viewSchedule.IsSplit())
+                if (viewSchedule.IsSplit())
                 {
                     TaskDialog.Show("Revit", $"Спецификация \"{viewSchedule.Name}\" уже разделена и не может быть размещена на листы!");
                     return Result.Cancelled;
@@ -79,7 +80,7 @@ namespace ViewScheduleSheetSpreader
                 {
                     t.Start("Спецификации на листы");
                     ElementCategoryFilter elementCategoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_TitleBlocks);
-                    
+
                     foreach (ViewSchedule viewSchedule in selectedViewScheduleList)
                     {
                         ScheduleHeightsOnSheet scheduleHeightsOnSheet = viewSchedule.GetScheduleHeightsOnSheet();
@@ -116,7 +117,7 @@ namespace ViewScheduleSheetSpreader
                                 }
                                 viewSchedule.Split(viewScheduleHeightsList);
                                 int realSegmentsCount = viewSchedule.GetSegmentCount();
-                                for(int i = 0; i< realSegmentsCount; i++)
+                                for (int i = 0; i < realSegmentsCount; i++)
                                 {
                                     double segH = viewSchedule.GetSegmentHeight(i);
                                     if (segH == double.MaxValue)
@@ -150,10 +151,10 @@ namespace ViewScheduleSheetSpreader
                                     }
                                     ScheduleSheetInstance scheduleSheetInstance = ScheduleSheetInstance.Create(doc, currentSheet.Id, viewSchedule.Id, viewLocation, i);
                                     currentSheetNumber++;
-                                    if(i == realSegmentsCount - 1)
+                                    if (i == realSegmentsCount - 1)
                                     {
                                         BoundingBoxXYZ bb = scheduleSheetInstance.get_BoundingBox(currentSheet);
-                                        lastSegmentSegmentHeight = new XYZ (bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
+                                        lastSegmentSegmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
                                     }
                                 }
                                 placementHeightOnFollowingSheet = placementHeightOnFollowingSheet - lastSegmentSegmentHeight;
@@ -162,7 +163,7 @@ namespace ViewScheduleSheetSpreader
                         }
                         else
                         {
-                            if(currentSheetNumber == sheetNumber)
+                            if (currentSheetNumber == sheetNumber)
                             {
                                 if (viewScheduleBodyRowHeight - placementHeightOnFirstSheet < 0)
                                 {
@@ -255,7 +256,7 @@ namespace ViewScheduleSheetSpreader
                                             BoundingBoxXYZ bb = scheduleSheetInstanceTMP.get_BoundingBox(currentSheet);
                                             double segmentHeight = new XYZ(bb.Max.X, bb.Max.Y, 0).DistanceTo(new XYZ(bb.Max.X, bb.Min.Y, 0)) - 0.01391076115;
                                             doc.Delete(scheduleSheetInstanceTMP.Id);
-                                            if(segmentHeight <= 0)
+                                            if (segmentHeight <= 0)
                                             {
                                                 viewSchedule.DeleteSegment(i);
                                                 realSegmentsCount--;
@@ -473,6 +474,7 @@ namespace ViewScheduleSheetSpreader
                     t.Commit();
                 }
             }
+#endif
             return Result.Succeeded;
         }
     }
