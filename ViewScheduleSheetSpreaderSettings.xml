@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 <ViewScheduleSheetSpreaderSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <SheetSizeSelectedButtonName>radioButton_Type</SheetSizeSelectedButtonName>
-  <FirstSheetFamilyName>КРК-АН-РД-ОсновнаяНадпись_В21</FirstSheetFamilyName>
-  <FirstSheetTypeName>Форма 3_РД</FirstSheetTypeName>
-  <FollowingSheetsFamilyName>КРК-АН-РД-ОсновнаяНадпись_В21</FollowingSheetsFamilyName>
-  <FollowingSheetsTypeName>Форма 6_РД</FollowingSheetsTypeName>
-  <SheetFormatParameterName>ADSK_Штамп_2 фамилия</SheetFormatParameterName>
+  <SheetSizeSelectedButtonName>radioButton_Instance</SheetSizeSelectedButtonName>
+  <FirstSheetFamilyName>020_Основная надпись Форма 3</FirstSheetFamilyName>
+  <FirstSheetTypeName>ОТ.СО</FirstSheetTypeName>
+  <FollowingSheetsFamilyName>020_Основная надпись Форма 6</FollowingSheetsFamilyName>
+  <FollowingSheetsTypeName>ОТ.СО</FollowingSheetsTypeName>
+  <SheetFormatParameterName>А</SheetFormatParameterName>
   <XOffsetValue>-400</XOffsetValue>
   <YOffsetValue>292</YOffsetValue>
   <FirstSheetNumberValue>101</FirstSheetNumberValue>
   <HeaderInSpecificationHeaderSelectedButtonName>radioButton_No</HeaderInSpecificationHeaderSelectedButtonName>
   <SpecificationHeaderHeightValue>32</SpecificationHeaderHeightValue>
-  <SheetNumberSuffix>ы</SheetNumberSuffix>
+  <SheetNumberSuffix />
 </ViewScheduleSheetSpreaderSettings>

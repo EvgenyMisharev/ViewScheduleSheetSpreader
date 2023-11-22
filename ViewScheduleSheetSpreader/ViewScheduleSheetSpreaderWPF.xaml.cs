@@ -306,7 +306,7 @@ namespace ViewScheduleSheetSpreader
             {
                 selectedViewScheduleList.Add(viewSchedule.Name);
             }
-            if(selectedViewScheduleList.Count != 0)
+            if (selectedViewScheduleList.Count != 0)
             {
                 new ViewScheduleListToXML().SaveList(selectedViewScheduleList);
             }
@@ -438,13 +438,13 @@ namespace ViewScheduleSheetSpreader
                 textBox_SheetNumberSuffix.Text = "";
             }
 
-            if(SelectedViewScheduleList != null)
+            if (SelectedViewScheduleList != null)
             {
-                foreach(string selectedViewScheduleName in SelectedViewScheduleList)
+                foreach (string selectedViewScheduleName in SelectedViewScheduleList)
                 {
-                    if(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName) != null)
+                    if (ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName) != null)
                     {
-                        if(!SelectedViewScheduleCollection.Contains(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName)))
+                        if (!SelectedViewScheduleCollection.Contains(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName)))
                         {
                             SelectedViewScheduleCollection.Add(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName));
                             ViewScheduleInProjectCollection.Remove(ViewScheduleInProjectCollection.FirstOrDefault(vs => vs.Name == selectedViewScheduleName));

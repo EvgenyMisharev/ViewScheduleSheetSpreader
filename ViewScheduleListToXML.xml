@@ -1,14 +1,7 @@
 <?xml version="1.0"?>
 <ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <string>1. В_Оборудование_П</string>
-  <string>2. В_Оборудование_В</string>
-  <string>3. В_Оборудование_ПДВ</string>
-  <string>1. В_Оборудование_П Увлажнители</string>
-  <string>1. В_Оборудование_ТИОН</string>
-  <string>6. В_Оборудование_HILTI</string>
-  <string>7. В_Арматура воздуховодов</string>
-  <string>В_Воздухораспределители</string>
-  <string>8. В_Воздуховоды</string>
-  <string>В_Воздуховоды Гибкие</string>
-  <string>В_Воздуховоды - соединительные детали</string>
+  <string>О_ОВ_Оборудование</string>
+  <string>О_ОВ_Арматура трубопроводов</string>
+  <string>О_ОВ_Трубопроводы</string>
+  <string>О_ОВ_Изоляция труб</string>
 </ArrayOfString>
